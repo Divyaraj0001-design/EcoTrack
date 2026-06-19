@@ -1,0 +1,197 @@
+/*
+ * dark-mode.css
+ * ─────────────
+ * Dark theme overrides for EcoTrack.
+ * Applied by setting data-theme="dark" on <html>.
+ * Green brand colors remain unchanged.
+ */
+
+[data-theme="dark"] {
+  /* ── Background layers ──────────────────────────────────────────────────── */
+  --color-bg:          #0D1117;
+  --color-surface:     #161B22;
+  --color-card:        #21262D;
+  --color-border:      #30363D;
+  --color-hover:       #1A3A2A;
+
+  /* ── Text ───────────────────────────────────────────────────────────────── */
+  --color-text:        #E6EDF3;
+  --color-text-sub:    #8B949E;
+  --color-text-muted:  #6E7681;
+
+  /* ── Inputs ─────────────────────────────────────────────────────────────── */
+  --color-input-bg:    #0D1117;
+  --color-input-border: #30363D;
+}
+
+/* ── Global surface overrides ────────────────────────────────────────────── */
+[data-theme="dark"] body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .topbar {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+[data-theme="dark"] .topbar-search {
+  background: var(--color-input-bg);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .topbar-search input { color: var(--color-text); }
+[data-theme="dark"] .topbar-search input::placeholder { color: var(--color-text-muted); }
+[data-theme="dark"] .topbar-icon-btn { color: var(--color-text-sub); }
+[data-theme="dark"] .topbar-icon-btn:hover { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] .topbar-user-name { color: var(--color-text); }
+[data-theme="dark"] .user-email { color: var(--color-text-sub); }
+[data-theme="dark"] .topbar-avatar { background: #2d6a4f; }
+
+/* ── Main content area ───────────────────────────────────────────────────── */
+[data-theme="dark"] .content { background: var(--color-bg); }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .card {
+  background: var(--color-card);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+[data-theme="dark"] .card-title { color: var(--color-text); }
+[data-theme="dark"] .card-subtitle { color: var(--color-text-sub); }
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] .stat-card {
+  background: var(--color-card);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+[data-theme="dark"] .stat-label { color: var(--color-text-sub); }
+[data-theme="dark"] .stat-value { color: var(--color-text); }
+[data-theme="dark"] .stat-trend-label { color: var(--color-text-muted); }
+[data-theme="dark"] .stat-icon { background: rgba(82,183,136,0.12); color: #52B788; }
+
+/* ── Page headers ────────────────────────────────────────────────────────── */
+[data-theme="dark"] .page-title { color: var(--color-text); }
+[data-theme="dark"] .page-subtitle { color: var(--color-text-sub); }
+
+/* ── Forms & Inputs ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .form-input,
+[data-theme="dark"] select.form-input,
+[data-theme="dark"] textarea.form-input {
+  background: var(--color-input-bg);
+  border-color: var(--color-input-border);
+  color: var(--color-text);
+}
+[data-theme="dark"] .form-input:focus { border-color: #52B788; }
+[data-theme="dark"] .form-input::placeholder { color: var(--color-text-muted); }
+[data-theme="dark"] .form-label { color: var(--color-text-sub); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .btn-outline {
+  border-color: var(--color-border);
+  color: var(--color-text);
+  background: transparent;
+}
+[data-theme="dark"] .btn-outline:hover {
+  background: var(--color-hover);
+  border-color: #52B788;
+  color: #52B788;
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+[data-theme="dark"] table { color: var(--color-text); }
+[data-theme="dark"] th { color: var(--color-text-sub); border-bottom-color: var(--color-border); }
+[data-theme="dark"] td { border-bottom-color: var(--color-border); color: var(--color-text); }
+[data-theme="dark"] tr:hover td { background: var(--color-surface); }
+
+/* ── Accordion (Help FAQ) ────────────────────────────────────────────────── */
+[data-theme="dark"] .faq-item {
+  background: var(--color-card);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .faq-question { color: var(--color-text); }
+[data-theme="dark"] .faq-question:hover { background: var(--color-surface); }
+[data-theme="dark"] .faq-answer { color: var(--color-text-sub); border-top-color: var(--color-border); }
+
+/* ── Notifications & Messages panels ────────────────────────────────────── */
+[data-theme="dark"] .notif-panel,
+[data-theme="dark"] .msg-panel {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+[data-theme="dark"] .notif-item { border-bottom-color: var(--color-border); }
+[data-theme="dark"] .notif-item:hover { background: var(--color-hover); }
+[data-theme="dark"] .notif-item-text { color: var(--color-text); }
+[data-theme="dark"] .notif-time { color: var(--color-text-muted); }
+[data-theme="dark"] .notif-panel-header {
+  border-bottom-color: var(--color-border);
+  color: var(--color-text);
+}
+
+/* ── Settings page ───────────────────────────────────────────────────────── */
+[data-theme="dark"] .settings-section {
+  background: var(--color-card);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .settings-section-title { color: var(--color-text); }
+[data-theme="dark"] .settings-divider { border-color: var(--color-border); }
+[data-theme="dark"] .toggle-switch { background: var(--color-border); }
+
+/* ── Import page ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] .import-drop-zone {
+  background: var(--color-card);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .import-drop-zone:hover { border-color: #52B788; background: var(--color-hover); }
+[data-theme="dark"] .import-preview-table th { background: var(--color-surface); color: var(--color-text-sub); }
+[data-theme="dark"] .import-preview-table td { color: var(--color-text); }
+
+/* ── Donut chart label ───────────────────────────────────────────────────── */
+[data-theme="dark"] .donut-label { color: var(--color-text); }
+[data-theme="dark"] .donut-sub { color: var(--color-text-sub); }
+
+/* ── Dark mode toggle button ─────────────────────────────────────────────── */
+#dark-mode-toggle {
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+#dark-mode-toggle:hover {
+  background: rgba(0,0,0,0.05);
+  border-color: #e5e7eb;
+  color: #374151;
+}
+[data-theme="dark"] #dark-mode-toggle {
+  color: #e6edf3;
+}
+[data-theme="dark"] #dark-mode-toggle:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: #30363d;
+}
+#dark-mode-toggle .icon-sun { display: none; }
+#dark-mode-toggle .icon-moon { display: block; }
+[data-theme="dark"] #dark-mode-toggle .icon-sun { display: block; }
+[data-theme="dark"] #dark-mode-toggle .icon-moon { display: none; }
+
+/* ── Toast in dark mode ──────────────────────────────────────────────────── */
+[data-theme="dark"] .toast { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+
+/* ── Sidebar (already dark, just tweak active state) ─────────────────────── */
+[data-theme="dark"] .sidebar { background: #111d16; }
+
+/* ── Smooth transition on theme change ───────────────────────────────────── */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+/* Exceptions — things that shouldn't transition */
+.ecobot-typing span,
+.eco-you-dot,
+#ecobot-fab::before {
+  transition: none;
+}

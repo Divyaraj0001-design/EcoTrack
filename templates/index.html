@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="EcoTrack — Track, reduce, and offset your personal carbon footprint with AI-powered insights and daily eco-challenges." />
+  <meta name="theme-color" content="#1B4332" />
+  <title>EcoTrack — Carbon Footprint Platform</title>
+  <link rel="manifest" href="/static/manifest.json" />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet.js + Heatmap (free, no API key) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/css/ecobot.css" />
+  <link rel="stylesheet" href="/static/css/map.css" />
+  <link rel="stylesheet" href="/static/css/dark-mode.css" />
+
+  <!-- Firebase SDK v10 (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Google Charts (existing) -->
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <!-- Firebase config injected by Flask -->
+  <script>
+    window.__FIREBASE_CONFIG__ = {{ firebase_config | tojson }};
+    window.__MAPS_API_KEY__ = {{ maps_api_key | tojson }};
+  </script>
+</head>
+
+<body>
+  <!-- Skip nav -->
+  <a href="#main-content" class="skip-nav">Skip to main content</a>
+
+  <!-- Sidebar overlay for mobile -->
+  <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       AUTH VIEW — full-screen overlay (no sidebar needed)
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="view-auth" class="view active" role="main" aria-label="Sign in">
+    <div class="auth-card-wrapper">
+
+      <div class="auth-card">
+        <!-- Logo -->
+        <div class="auth-logo-row">
+          <div class="auth-logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2C7 2 3 7 3 13c0 4 2.5 7 6 8.5V18c0-3 2-5 3-6 1 1 3 3 3 6v3.5C18.5 20 21 17 21 13c0-6-4-11-9-11z" fill="rgba(255,255,255,0.2)" />
+              <path d="M12 12v8" stroke-linecap="round" stroke-opacity="0.5" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="auth-title">Welcome to EcoTrack</h1>
+            <p class="auth-subtitle">Track, reduce, and offset your carbon footprint</p>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="auth-tabs" role="tablist" aria-label="Sign in or sign up">
+          <button class="auth-tab active" id="tab-signin" role="tab" aria-selected="true" aria-controls="panel-signin">Sign In</button>
+          <button class="auth-tab" id="tab-signup" role="tab" aria-selected="false" aria-controls="panel-signup">Sign Up</button>
+        </div>
+
+        <!-- Sign In Panel -->
+        <div id="panel-signin" class="auth-panel" role="tabpanel" aria-labelledby="tab-signin">
+          <form id="form-signin" novalidate aria-label="Sign in form">
+            <div class="form-group">
+              <label for="signin-email" class="form-label">Email address</label>
+              <input type="email" id="signin-email" name="email" class="form-input" placeholder="you@example.com" required autocomplete="email" aria-required="true" />
+            </div>
+            <div class="form-group">
+              <label for="signin-password" class="form-label">Password</label>
+              <input type="password" id="signin-password" name="password" class="form-input" placeholder="••••••••" required autocomplete="current-password" aria-required="true" />
+            </div>
+            <div class="form-error" id="signin-error" role="alert" aria-live="assertive"></div>
+            <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-signin" aria-label="Sign in">
+              <span class="btn-text">Sign In</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Sign Up Panel -->
+        <div id="panel-signup" class="auth-panel hidden" role="tabpanel" aria-labelledby="tab-signup">
+          <form id="form-signup" novalidate aria-label="Sign up form">
+            <div class="form-group">
+              <label for="signup-email" class="form-label">Email address</label>
+              <input type="email" id="signup-email" name="email" class="form-input" placeholder="you@example.com" required autocomplete="email" aria-required="true" />
+            </div>
+            <div class="form-group">
+              <label for="signup-password" class="form-label">Password</label>
+              <input type="password" id="signup-password" name="password" class="form-input" placeholder="Min 6 characters" required autocomplete="new-password" aria-required="true" minlength="6" />
+            </div>
+            <div class="form-error" id="signup-error" role="alert" aria-live="assertive"></div>
+            <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-signup" aria-label="Create account">
+              <span class="btn-text">Create Account</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Feature pills -->
+      <div class="auth-features" aria-label="Platform features">
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Live Charts
+        </div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          AI Tips
+        </div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8 8l-4 8 4-1 2 3 2-8M16 8l4 8-4-1-2 3-2-8"/></svg>
+          Challenges
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       APP SHELL — Sidebar + Main (shown when authenticated)
+  ══════════════════════════════════════════════════════════════ -->
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 2C7 2 3 7 3 13c0 4 2.5 7 6 8.5V18c0-3 2-5 3-6 1 1 3 3 3 6v3.5C18.5 20 21 17 21 13c0-6-4-11-9-11z" fill="rgba(255,255,255,0.15)"/>
+          <path d="M12 12v8" stroke-linecap="round" stroke-opacity="0.5"/>
+        </svg>
+      </div>
+      <span class="sidebar-logo-name">EcoTrack</span>
+    </div>
+
+    <!-- Primary Nav -->
+    <nav class="sidebar-nav" aria-label="Primary">
+
+      <!-- Main links -->
+      <button class="nav-btn active" data-route="dashboard" id="nav-dashboard" aria-label="Dashboard" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Dashboard
+      </button>
+
+      <button class="nav-btn" data-route="calculator" id="nav-calculator" aria-label="Calculator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+        Log Activity
+      </button>
+
+      <button class="nav-btn" data-route="challenges" id="nav-challenges" aria-label="Challenges">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8 8l-4 8 4-1 2 3 2-8M16 8l4 8-4-1-2 3-2-8"/></svg>
+        Challenges
+      </button>
+
+      <button class="nav-btn" data-route="insights" id="nav-insights" aria-label="Analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytics
+      </button>
+
+      <div class="sidebar-divider" aria-hidden="true"></div>
+      <div class="sidebar-section-label">GENERAL</div>
+
+      <button class="nav-btn" data-route="settings" id="nav-settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+
+      <button class="nav-btn" data-route="map" id="nav-map" aria-label="Eco Map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Eco Map
+      </button>
+
+      <button class="nav-btn" data-route="import" id="nav-import" aria-label="Import Data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Import Data
+      </button>
+
+      <button class="nav-btn" data-route="help" id="nav-help" aria-label="Help">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Help
+      </button>
+
+      <button class="nav-btn" id="auth-btn" aria-label="Sign out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+
+    </nav>
+
+    <!-- Install App Card (PWA) -->
+    <div class="sidebar-app-card hidden" id="sidebar-install-card" aria-label="Install app">
+      <div class="sidebar-app-card-title">Install EcoTrack</div>
+      <div class="sidebar-app-card-sub">Add to your home screen for offline access.</div>
+      <button class="sidebar-app-btn" id="btn-install-app" aria-label="Install EcoTrack app">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12l4 4 4-4M12 8v8"/></svg>
+        Install
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ── MAIN WRAPPER ──────────────────────────────────────────────────── -->
+  <div class="main-wrapper">
+
+    <!-- ── TOPBAR ───────────────────────────────────────────────────────── -->
+    <header class="topbar" role="banner">
+      <!-- Mobile sidebar toggle -->
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+
+      <!-- Search bar -->
+      <div class="topbar-search" role="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" placeholder="Search activity…" aria-label="Search activities" id="topbar-search-input" />
+        <span class="search-kbd" aria-hidden="true">⌘K</span>
+      </div>
+
+      <!-- Topbar right actions -->
+      <div class="topbar-actions" role="toolbar" aria-label="Toolbar">
+
+        <!-- Dark mode toggle -->
+        <button id="dark-mode-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+
+        <!-- Messages -->
+        <div style="position:relative">
+          <button class="topbar-icon-btn" id="btn-messages" aria-label="Announcements" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span class="notif-badge" id="msg-badge" style="display:none" aria-label="Announcements"></span>
+          </button>
+          <!-- Messages panel -->
+          <div class="notif-panel" id="msg-panel" role="dialog" aria-label="Announcements">
+            <div class="notif-panel-header">
+              <span>📢 Announcements</span>
+            </div>
+            <div id="msg-list" class="notif-list"></div>
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div style="position:relative">
+          <button class="topbar-icon-btn" id="btn-notifications" aria-label="Notifications" aria-haspopup="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-badge" id="notif-badge" style="display:none" aria-label="Unread notifications"></span>
+          </button>
+          <!-- Notifications panel -->
+          <div class="notif-panel" id="notif-panel" role="dialog" aria-label="Notifications">
+            <div class="notif-panel-header">
+              <span>🔔 Notifications</span>
+              <button id="btn-mark-all-read" class="notif-mark-read-btn">Mark all read</button>
+            </div>
+            <div id="notif-list" class="notif-list"></div>
+          </div>
+        </div>
+
+        <!-- User avatar + info -->
+        <div class="topbar-user" role="button" tabindex="0" aria-label="User account" onclick="window.EcoApp?.navigate('settings')">
+          <div class="topbar-avatar" id="topbar-avatar" aria-hidden="true">E</div>
+          <div class="topbar-user-info">
+            <div class="topbar-user-name">EcoUser</div>
+            <div class="user-email" id="user-email" aria-live="polite"></div>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- ── CONTENT ──────────────────────────────────────────────────────── -->
+    <main class="content" id="main-content" role="main">
+
+      <!-- ════════════════════════════════════════════════════════════════
+           DASHBOARD VIEW
+      ════════════════════════════════════════════════════════════════ -->
+      <section id="view-dashboard" class="view hidden" aria-label="Dashboard">
+
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-header-text">
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle" id="dashboard-greeting">Track, reduce, and offset your carbon footprint.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" id="btn-go-calculator" aria-label="Log a new activity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Log Activity
+            </button>
+            <button class="btn btn-outline" id="btn-go-import" aria-label="Import data">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Import Data
+            </button>
+          </div>
+        </div>
+
+        <!-- ── STAT CARDS (4) ──────────────────────────────────────────── -->
+        <div class="stat-grid" role="list" aria-label="Summary statistics">
+
+          <!-- Total kg CO₂ — green filled card -->
+          <div class="stat-card stat-primary" role="listitem" aria-label="Total carbon footprint">
+            <div class="stat-header">
+              <span class="stat-label">Total CO₂ Impact</span>
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dash-total">—</div>
+            <div class="stat-footer">
+              <span class="stat-trend neutral" aria-label="trend">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </span>
+              <span class="stat-trend-label">kg CO₂ equivalent</span>
+            </div>
+          </div>
+
+          <!-- Transport -->
+          <div class="stat-card" role="listitem" aria-label="Transport emissions">
+            <div class="stat-header">
+              <span class="stat-label">Transport</span>
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dash-transport">—</div>
+            <div class="stat-footer">
+              <span class="stat-trend-label">kg CO₂e from transport</span>
+            </div>
+          </div>
+
+          <!-- Food -->
+          <div class="stat-card" role="listitem" aria-label="Food emissions">
+            <div class="stat-header">
+              <span class="stat-label">Food</span>
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dash-food">—</div>
+            <div class="stat-footer">
+              <span class="stat-trend-label">kg CO₂e from food</span>
+            </div>
+          </div>
+
+          <!-- Carbon Score -->
+          <div class="stat-card" role="listitem" aria-label="Carbon score grade">
+            <div class="stat-header">
+              <span class="stat-label">Carbon Score</span>
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+            </div>
+            <div class="stat-value" id="dash-score-label" style="font-size:20px;line-height:1.4">—</div>
+            <div class="stat-footer">
+              <span class="stat-trend-label" id="dash-energy" style="display:none"></span>
+              <span class="stat-trend-label">Current rating</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── MIDDLE ROW: Chart · Reminder · Activity Tips ──────────────── -->
+        <div class="dash-row dash-row-3">
+
+          <!-- Emission Analytics Bar Chart -->
+          <div class="card" aria-label="Weekly emission analytics">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Emission Analytics</div>
+                <div class="card-subtitle">Weekly breakdown by day</div>
+              </div>
+              <button class="card-action" aria-label="View full analytics" onclick="window.EcoApp?.navigate('insights')">View All</button>
+            </div>
+            <div class="emission-chart-wrap">
+              <canvas id="emission-bar-chart" class="emission-chart-canvas" aria-label="Weekly emission bar chart" role="img"></canvas>
+            </div>
+          </div>
+
+          <!-- Today's Challenges (real data from /api/challenges) -->
+          <div class="card" aria-label="Today's eco-challenges">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Today's Challenges</div>
+                <div class="card-subtitle">Daily &amp; weekly eco-challenges</div>
+              </div>
+              <button class="card-action" aria-label="View all challenges" onclick="window.EcoApp?.navigate('challenges')">View All</button>
+            </div>
+
+            <div class="reminder-item">
+              <div class="reminder-time-block" aria-label="Daily challenge points">
+                <span class="reminder-time-h" id="dash-daily-icon" style="font-size:20px">🌱</span>
+                <span class="reminder-time-m" id="dash-daily-points">—</span>
+              </div>
+              <div class="reminder-info">
+                <div class="reminder-title" id="dash-daily-title">Loading…</div>
+                <div class="reminder-sub" id="dash-daily-desc"></div>
+              </div>
+            </div>
+            <div class="reminder-divider" aria-hidden="true"></div>
+            <div class="reminder-item">
+              <div class="reminder-time-block" aria-label="Weekly challenge points">
+                <span class="reminder-time-h" id="dash-weekly-icon" style="font-size:20px">🏆</span>
+                <span class="reminder-time-m" id="dash-weekly-points">—</span>
+              </div>
+              <div class="reminder-info">
+                <div class="reminder-title" id="dash-weekly-title">Loading…</div>
+                <div class="reminder-sub" id="dash-weekly-desc"></div>
+              </div>
+            </div>
+            <div style="padding: 14px 20px;">
+              <button class="btn btn-accent btn-full btn-sm" id="btn-reminder-log" aria-label="Log activity now" onclick="window.EcoApp?.navigate('calculator')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                Log Now
+              </button>
+            </div>
+          </div>
+
+          <!-- Recent Activity Tips (from API) -->
+          <div class="card" aria-label="Recent activity tips">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Activities</div>
+                <div class="card-subtitle">Your latest eco-actions</div>
+              </div>
+              <button class="card-action" onclick="window.EcoApp?.navigate('calculator')" aria-label="Log new activity">+ New</button>
+            </div>
+
+            <div class="activity-list" id="recent-activity-list" role="list" aria-label="Recent activities">
+              <p class="tips-empty">Calculate your footprint to see recent activity.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── PROGRESS TRACKER ─────────────────────────────────────────────── -->
+        <div class="dash-row">
+
+          <!-- Progress Tracker Donut -->
+          <div class="card" aria-label="Monthly carbon goal progress">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Progress Tracker</div>
+                <div class="card-subtitle">Monthly carbon reduction goal</div>
+              </div>
+            </div>
+            <div class="donut-wrap">
+              <div class="donut-canvas-wrap">
+                <canvas id="progress-donut-chart" class="donut-canvas" aria-label="Progress donut chart showing percentage of monthly carbon goal used" role="img"></canvas>
+                <div class="donut-center">
+                  <div class="donut-pct" id="donut-pct">—</div>
+                  <div class="donut-pct-label">of Goal</div>
+                </div>
+              </div>
+              <div class="donut-legend" role="list" aria-label="Progress legend">
+                <div class="legend-item" role="listitem">
+                  <div class="legend-dot" style="background:#1B4332" aria-hidden="true"></div>
+                  <span class="legend-label">Used</span>
+                  <span class="legend-val" id="donut-used-val">—</span>
+                </div>
+                <div class="legend-item" role="listitem">
+                  <div class="legend-dot" style="background:#B7E4C7" aria-hidden="true"></div>
+                  <span class="legend-label">Remaining</span>
+                  <span class="legend-val" id="donut-remaining-val">—</span>
+                </div>
+                <div class="legend-item" role="listitem">
+                  <div class="legend-dot" style="background:#52B788" aria-hidden="true"></div>
+                  <span class="legend-label">Monthly Target</span>
+                  <span class="legend-val" id="donut-target-val">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── CARBON TIMER + AI TIPS ──────────────────────────────────────── -->
+        <div class="dash-row dash-row-2">
+
+          <!-- Carbon Timer Widget -->
+          <div class="timer-widget" role="timer" aria-label="Carbon logging session timer" aria-live="polite">
+            <div class="timer-left">
+              <div class="timer-label">Carbon Timer</div>
+              <div class="timer-activity" id="timer-activity-label">Logging session active</div>
+              <div class="timer-display" id="timer-display" aria-atomic="true">00:00:00</div>
+            </div>
+            <div class="timer-controls">
+              <button class="timer-btn timer-btn-pause" id="timer-pause-btn" aria-label="Pause timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              </button>
+              <button class="timer-btn timer-btn-stop" id="timer-stop-btn" aria-label="Stop timer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Tips Card -->
+          <div class="card" aria-label="AI-powered reduction tips">
+            <div class="card-header">
+              <div>
+                <div class="card-title">AI-Powered Tips</div>
+                <div class="card-subtitle">Personalised reduction suggestions</div>
+              </div>
+            </div>
+            <div class="tips-list" id="tips-list" role="list" aria-live="polite">
+              <p class="tips-empty">Calculate your footprint to get personalised tips.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Google Charts (original, hidden by dashboard's new charts) -->
+        <div style="display:none" aria-hidden="true">
+          <div id="pie-chart"></div>
+          <div id="line-chart"></div>
+        </div>
+
+      </section>
+
+
+      <!-- ════════════════════════════════════════════════════════════════
+           CALCULATOR VIEW
+      ════════════════════════════════════════════════════════════════ -->
+      <section id="view-calculator" class="view hidden" aria-label="Carbon footprint calculator">
+        <div class="view-header">
+          <h1 class="view-title">Log <span class="gradient-text">Activity</span></h1>
+          <p class="view-subtitle">Enter your weekly activity data to calculate your footprint.</p>
+        </div>
+
+        <form id="calc-form" class="calc-form" novalidate aria-label="Carbon footprint calculator">
+
+          <!-- Transport -->
+          <fieldset class="calc-fieldset">
+            <legend class="fieldset-legend">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              Transport
+            </legend>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="transport-mode" class="form-label">Primary transport mode</label>
+                <select id="transport-mode" name="transport_mode" class="form-select" required aria-required="true">
+                  <option value="">Select mode…</option>
+                  <option value="car">Car (0.21 kg CO₂/km)</option>
+                  <option value="bus">Bus (0.089 kg CO₂/km)</option>
+                  <option value="flight">Flight (0.255 kg CO₂/km)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="transport-km" class="form-label">Distance (km)</label>
+                <input type="number" id="transport-km" name="transport_km" class="form-input" placeholder="e.g. 150" min="0" max="50000" step="1" required aria-required="true" />
+                <span class="form-hint">Total km this week.</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="calc-route-from" class="form-label">From (optional)</label>
+                <input type="text" id="calc-route-from" name="route_from" class="form-input" placeholder="e.g. London" />
+                <span class="form-hint">Optional — adds this trip to your Eco Map.</span>
+              </div>
+              <div class="form-group">
+                <label for="calc-route-to" class="form-label">To (optional)</label>
+                <input type="text" id="calc-route-to" name="route_to" class="form-input" placeholder="e.g. Manchester" />
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Food -->
+          <fieldset class="calc-fieldset">
+            <legend class="fieldset-legend">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+              Food
+            </legend>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="diet-type" class="form-label">Diet type</label>
+                <select id="diet-type" name="diet_type" class="form-select" required aria-required="true">
+                  <option value="">Select diet…</option>
+                  <option value="meat">Meat-eater (7.2 kg CO₂/day)</option>
+                  <option value="vegetarian">Vegetarian (3.8 kg CO₂/day)</option>
+                  <option value="vegan">Vegan (2.9 kg CO₂/day)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="food-days" class="form-label">Days to calculate</label>
+                <input type="number" id="food-days" name="food_days" class="form-input" value="7" min="1" max="365" step="1" required aria-required="true" />
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Energy -->
+          <fieldset class="calc-fieldset">
+            <legend class="fieldset-legend">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Home Energy
+            </legend>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="electricity-kwh" class="form-label">Electricity (kWh)</label>
+                <input type="number" id="electricity-kwh" name="electricity_kwh" class="form-input" placeholder="e.g. 250" min="0" max="10000" step="0.1" />
+                <span class="form-hint">Avg UK home: ~242 kWh/month.</span>
+              </div>
+              <div class="form-group">
+                <label for="gas-m3" class="form-label">Natural Gas (m³)</label>
+                <input type="number" id="gas-m3" name="gas_m3" class="form-input" placeholder="e.g. 30" min="0" max="10000" step="0.1" />
+                <span class="form-hint">Leave blank if no gas.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Shopping -->
+          <fieldset class="calc-fieldset">
+            <legend class="fieldset-legend">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Shopping
+            </legend>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="shopping-level" class="form-label">Shopping intensity</label>
+                <select id="shopping-level" name="shopping_level" class="form-select" required aria-required="true">
+                  <option value="">Select level…</option>
+                  <option value="low">Low — minimal / second-hand (3 kg/week)</option>
+                  <option value="medium">Medium — average consumer (8 kg/week)</option>
+                  <option value="high">High — frequent new purchases (15 kg/week)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="shopping-weeks" class="form-label">Weeks</label>
+                <input type="number" id="shopping-weeks" name="shopping_weeks" class="form-input" value="1" min="1" max="52" step="1" required aria-required="true" />
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="form-error" id="calc-error" role="alert" aria-live="assertive"></div>
+
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-calculate" aria-label="Calculate my carbon footprint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span class="btn-text">Calculate My Footprint</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <!-- Result -->
+        <div id="calc-result" class="result-card card hidden" aria-live="polite" aria-label="Calculation results">
+          <div class="result-header">
+            <h2 class="result-title">Your Result</h2>
+            <div class="result-score-badge" id="result-score-label"></div>
+          </div>
+          <div class="result-total" id="result-total"></div>
+          <div class="result-breakdown" id="result-breakdown" role="list" aria-label="Breakdown by category"></div>
+          <button class="btn btn-primary" id="btn-view-dashboard" aria-label="View dashboard">
+            View Dashboard
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </section>
+
+
+      <!-- ════════════════════════════════════════════════════════════════
+           CHALLENGES VIEW
+      ════════════════════════════════════════════════════════════════ -->
+      <section id="view-challenges" class="view hidden" aria-label="Eco challenges">
+        <div class="view-header">
+          <h1 class="view-title"><span class="gradient-text">Eco</span> Challenges</h1>
+          <p class="view-subtitle">Complete daily and weekly challenges to build sustainable habits.</p>
+        </div>
+
+        <div class="challenges-grid">
+          <!-- Daily -->
+          <div class="card challenge-feature" id="daily-challenge-card" aria-label="Today's daily challenge">
+            <div class="challenge-badge badge-daily">TODAY</div>
+            <div class="challenge-icon-wrap" id="daily-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2C7 2 3 7 3 13c0 4 2.5 7 6 8.5V18c0-3 2-5 3-6 1 1 3 3 3 6v3.5C18.5 20 21 17 21 13c0-6-4-11-9-11z"/></svg>
+            </div>
+            <h2 class="challenge-name" id="daily-title">Loading…</h2>
+            <p class="challenge-desc" id="daily-desc"></p>
+            <div class="challenge-points" id="daily-points"></div>
+            <button class="btn btn-primary" id="btn-daily-complete" aria-label="Mark daily challenge complete">
+              Mark Complete
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Weekly -->
+          <div class="card challenge-feature" id="weekly-challenge-card" aria-label="This week's challenge">
+            <div class="challenge-badge badge-weekly">THIS WEEK</div>
+            <div class="challenge-icon-wrap" id="weekly-icon" aria-hidden="true" style="background:var(--warning-l);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--warning)"><circle cx="12" cy="8" r="5"/><path d="M8 8l-4 8 4-1 2 3 2-8M16 8l4 8-4-1-2 3-2-8"/></svg>
+            </div>
+            <h2 class="challenge-name" id="weekly-title">Loading…</h2>
+            <p class="challenge-desc" id="weekly-desc"></p>
+            <div class="challenge-points" id="weekly-points"></div>
+            <button class="btn btn-outline" id="btn-weekly-complete" aria-label="Accept weekly challenge">Accept Challenge</button>
+          </div>
+        </div>
+
+        <!-- All Challenges -->
+        <div class="card all-challenges" aria-label="All challenges">
+          <div class="card-header" style="padding:0;margin-bottom:16px">
+            <div>
+              <div class="card-title">All Challenges</div>
+            </div>
+          </div>
+          <div class="challenges-tabs" role="tablist" aria-label="Challenge type">
+            <button class="challenge-tab active" data-type="daily" role="tab" aria-selected="true" id="ctab-daily">Daily</button>
+            <button class="challenge-tab" data-type="weekly" role="tab" aria-selected="false" id="ctab-weekly">Weekly</button>
+          </div>
+          <div class="challenges-list" id="challenges-list" role="list" aria-live="polite"></div>
+        </div>
+      </section>
+
+
+      <!-- ════════════════════════════════════════════════════════════════
+           INSIGHTS VIEW
+      ════════════════════════════════════════════════════════════════ -->
+      <section id="view-insights" class="view hidden" aria-label="Insights and analytics">
+        <div class="view-header">
+          <h1 class="view-title">Your <span class="gradient-text">Insights</span></h1>
+          <p class="view-subtitle">Understand your impact, compare against averages, and plan reductions.</p>
+        </div>
+
+        <!-- Real-World Impact -->
+        <div class="card insights-section" aria-label="Real-world impact equivalents">
+          <div class="card-header" style="padding:0;margin-bottom:8px">
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              Real-World Impact
+            </div>
+            <div class="card-subtitle">What does your carbon footprint actually mean?</div>
+          </div>
+          <div class="equiv-grid" id="equiv-container">
+            <p class="insights-empty">Calculate your footprint to see real-world equivalents.</p>
+          </div>
+        </div>
+
+        <!-- Analytics vs Average -->
+        <div class="card insights-section" aria-label="Your stats vs UK average">
+          <div class="card-header" style="padding:0;margin-bottom:8px">
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Your Stats vs UK Average
+            </div>
+          </div>
+          <div id="analytics-container">
+            <p class="insights-empty">Calculate your footprint to compare against the UK average.</p>
+          </div>
+          <div id="history-sparkline" class="sparkline-wrap"></div>
+        </div>
+
+        <!-- Carbon Action Planner -->
+        <div class="card insights-section" aria-label="Carbon action planner">
+          <div class="card-header" style="padding:0;margin-bottom:8px">
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Carbon Action Planner
+            </div>
+          </div>
+          <div id="planner-container"></div>
+        </div>
+
+        <!-- Achievements -->
+        <div class="card insights-section" aria-label="Achievements and badges">
+          <div class="card-header" style="padding:0;margin-bottom:8px">
+            <div class="card-title" style="display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M8 8l-4 8 4-1 2 3 2-8M16 8l4 8-4-1-2 3-2-8"/></svg>
+              Achievements
+            </div>
+            <div class="card-subtitle">Unlock badges by taking eco-friendly actions.</div>
+          </div>
+          <div class="badges-grid" id="badges-container"></div>
+        </div>
+
+      </section>
+
+    </main><!-- /.content -->
+  </div><!-- /.main-wrapper -->
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SETTINGS VIEW
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="view-settings" class="view hidden" aria-label="Settings">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Manage your profile, preferences, and carbon goals.</p>
+      </div>
+    </div>
+    <div style="max-width:720px;margin:0 auto;padding:0 28px 40px;display:flex;flex-direction:column;gap:20px">
+
+      <!-- Profile -->
+      <form id="settings-form">
+      <div class="card settings-section">
+        <div class="card-header" style="padding:0;margin-bottom:16px">
+          <div class="card-title">Profile</div>
+          <div class="card-subtitle">Update your display name and profile photo</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="settings-display-name">Display Name</label>
+          <input type="text" id="settings-display-name" class="form-input" placeholder="Your name" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="settings-email">Email</label>
+          <input type="email" id="settings-email" class="form-input" placeholder="you@example.com" disabled style="opacity:0.6" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="settings-photo-url">Profile Photo URL <span style="color:#9ca3af;font-size:12px">(optional)</span></label>
+          <input type="url" id="settings-photo-url" class="form-input" placeholder="https://example.com/photo.jpg" />
+        </div>
+      </div>
+
+      <!-- Notifications prefs -->
+      <div class="card settings-section">
+        <div class="card-header" style="padding:0;margin-bottom:16px">
+          <div class="card-title">Notification Preferences</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+            <div>
+              <div style="font-weight:500;font-size:14px">Email Alerts</div>
+              <div style="font-size:12px;color:#6b7280">Receive important account updates by email</div>
+            </div>
+            <input type="checkbox" id="toggle-email-alerts" class="toggle-switch" />
+          </label>
+          <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+            <div>
+              <div style="font-weight:500;font-size:14px">Weekly Summary</div>
+              <div style="font-size:12px;color:#6b7280">Get your CO₂ summary every Monday</div>
+            </div>
+            <input type="checkbox" id="toggle-weekly-summary" class="toggle-switch" />
+          </label>
+          <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+            <div>
+              <div style="font-weight:500;font-size:14px">Challenge Reminders</div>
+              <div style="font-size:12px;color:#6b7280">Get nudged about active eco-challenges</div>
+            </div>
+            <input type="checkbox" id="toggle-challenge-reminder" class="toggle-switch" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Carbon Goal -->
+      <div class="card settings-section">
+        <div class="card-header" style="padding:0;margin-bottom:16px">
+          <div class="card-title">Carbon Goal</div>
+          <div class="card-subtitle">Monthly CO₂ budget target in kg</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="settings-monthly-goal">Monthly Goal (kg CO₂)</label>
+          <input type="number" id="settings-monthly-goal" class="form-input" min="50" max="2000" step="10" value="300" />
+          <p style="font-size:12px;color:#6b7280;margin-top:6px">Global average is 333 kg/month. A great goal is under 200 kg. 🌱</p>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="card settings-section">
+        <div class="card-header" style="padding:0;margin-bottom:16px">
+          <div class="card-title">Appearance</div>
+        </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+          <div>
+            <div style="font-weight:500;font-size:14px">Dark Mode</div>
+            <div style="font-size:12px;color:#6b7280">Switch to a darker interface</div>
+          </div>
+          <input type="checkbox" id="settings-theme-toggle" class="toggle-switch" />
+        </label>
+      </div>
+
+      <!-- Save -->
+      <button type="submit" class="btn btn-primary" id="btn-save-settings" style="align-self:flex-start;padding:11px 28px">
+        Save Settings
+      </button>
+      </form>
+
+      <!-- Danger zone -->
+      <div class="card settings-section" style="border:1.5px solid #fee2e2">
+        <div class="card-title" style="color:#dc2626">Danger Zone</div>
+        <p style="font-size:13px;color:#6b7280;margin:8px 0 16px">Permanently delete your account and all associated data. This action cannot be undone.</p>
+        <button id="btn-delete-account" class="btn" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;padding:9px 20px;font-size:13px" aria-label="Delete account">
+          🗑️ Delete Account
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Delete account confirmation modal -->
+  <div id="modal-delete-account" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center" class="" onclick="this.classList.remove('open')">
+  </div>
+  <div id="modal-delete-account" class="" style="display:none">
+  </div>
+  <!-- Simple inline modal using class trick -->
+  <style>
+    #modal-delete-account.open { display:flex!important; }
+    .settings-modal { background:#fff; border-radius:16px; padding:28px; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+    [data-theme="dark"] .settings-modal { background:#21262d; }
+    .toggle-switch { width:40px; height:22px; appearance:none; background:#d1d5db; border-radius:20px; position:relative; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
+    .toggle-switch:checked { background:#1B4332; }
+    .toggle-switch::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:3px; left:3px; transition:left 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch:checked::after { left:21px; }
+    .notif-panel { position:absolute; top:calc(100% + 8px); right:0; width:320px; background:#fff; border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,0.12); border:1px solid #eee; z-index:800; opacity:0; pointer-events:none; transform:translateY(-6px); transition:opacity 0.2s,transform 0.2s; }
+    .notif-panel.open { opacity:1; pointer-events:all; transform:translateY(0); }
+    .notif-panel-header { padding:14px 16px 12px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; font-weight:600; font-size:13.5px; }
+    .notif-mark-read-btn { font-size:11.5px; color:#1B4332; background:none; border:none; cursor:pointer; font-weight:500; }
+    .notif-list { max-height:280px; overflow-y:auto; }
+    .notif-item { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-bottom:1px solid #f8f8f8; cursor:pointer; transition:background 0.1s; }
+    .notif-item:hover { background:#f8fafb; }
+    .notif-item.unread { background:#f0fdf4; }
+    .notif-icon { font-size:18px; flex-shrink:0; width:24px; text-align:center; }
+    .notif-body { flex:1; min-width:0; }
+    .notif-item-text { font-size:13px; color:#374151; line-height:1.45; }
+    .notif-time { font-size:11px; color:#9ca3af; margin-top:2px; }
+    .notif-unread-dot { width:8px; height:8px; border-radius:50%; background:#52B788; flex-shrink:0; margin-top:4px; }
+    .notif-empty { padding:20px 16px; text-align:center; font-size:13px; color:#9ca3af; }
+    .settings-section { padding:20px; margin-bottom:0 }
+  </style>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       HELP VIEW
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="view-help" class="view hidden" aria-label="Help Center">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1 class="page-title">Help Center</h1>
+        <p class="page-subtitle">Find answers, tutorials, and contact support.</p>
+      </div>
+    </div>
+    <div style="max-width:780px;margin:0 auto;padding:0 28px 40px;display:flex;flex-direction:column;gap:24px">
+
+      <!-- Search -->
+      <div style="position:relative">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:#9ca3af" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="help-search" class="form-input" style="padding-left:42px" placeholder="Search FAQ…" aria-label="Search frequently asked questions" />
+      </div>
+      <div id="help-no-results" class="hidden" style="text-align:center;padding:20px;color:#9ca3af;font-size:14px">No matching questions found. Try different keywords.</div>
+
+      <!-- FAQ -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0"><div class="card-title">Frequently Asked Questions</div></div>
+        <style>
+          .faq-item { border-bottom:1px solid #f0f0f0; }
+          .faq-item:last-child { border-bottom:none; }
+          .faq-question { width:100%;text-align:left;background:none;border:none;padding:16px 20px;font-family:inherit;font-size:14px;font-weight:500;color:#1a2e1a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:background 0.1s; }
+          .faq-question:hover { background:#f8fafb; }
+          .faq-chevron { flex-shrink:0;transition:transform 0.2s; }
+          .faq-item.open .faq-chevron { transform:rotate(180deg); }
+          .faq-answer { max-height:0;overflow:hidden;transition:max-height 0.3s ease;font-size:13.5px;color:#4b5563;line-height:1.65;border-top:1px solid transparent; }
+          .faq-item.open .faq-answer { border-top-color:#f0f0f0; }
+          .faq-answer-inner { padding:14px 20px 18px; }
+        </style>
+        <div class="faq-item"><button class="faq-question">How is my carbon footprint calculated?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">EcoTrack uses internationally recognised emission factors (IPCC, Defra) to convert your transport distance, diet type, energy usage, and shopping activity into kg of CO₂ equivalent (CO₂e). Transport emissions are calculated per km by vehicle type; food by diet category × daily factor; energy from kWh and gas m³; shopping by spend level.</div></div></div>
+        <div class="faq-item"><button class="faq-question">What does my Carbon Score mean?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Your Carbon Score is a letter grade: <strong>Excellent</strong> (under 100 kg/mo), <strong>Good</strong> (100–200 kg), <strong>Average</strong> (200–333 kg), <strong>High</strong> (333–500 kg), <strong>Critical</strong> (over 500 kg). The global average is ~333 kg/month. Aim to get into "Good" or better! 🌟</div></div></div>
+        <div class="faq-item"><button class="faq-question">How do I log a transport activity?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Click <strong>Log Activity</strong> in the sidebar. Under Transport, choose your mode (Car, Flight, Bus) and enter your distance in km. You can also add start and end locations to visualise your route on the Eco Map.</div></div></div>
+        <div class="faq-item"><button class="faq-question">What are Eco Challenges?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Eco Challenges are daily and weekly tasks designed to help you reduce your footprint — like cycling instead of driving, or switching to a plant-based meal. Completing them earns points and unlocks achievement badges!</div></div></div>
+        <div class="faq-item"><button class="faq-question">What is EcoBot?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">EcoBot is your AI carbon coach. Click the green robot icon in the bottom-right corner to open the chat. Ask it about your score, how to reduce emissions, challenge suggestions, or anything eco-related. It uses your real stats to give personalised advice.</div></div></div>
+        <div class="faq-item"><button class="faq-question">How does the Eco Map work?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">The Eco Map shows your logged transport routes colour-coded by emission level (green = low, red = high). You can also find nearby eco-friendly places (bike rentals, EV charging, recycling centres) using the Green Spots layer, powered by free OpenStreetMap data.</div></div></div>
+        <div class="faq-item"><button class="faq-question">How do I import my data?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Go to <strong>Import Data</strong> in the sidebar. Drag a CSV file with columns: date, category, activity, amount, unit — or download the sample CSV for the exact format. You'll see a preview before confirming. Duplicate rows are skipped automatically.</div></div></div>
+        <div class="faq-item"><button class="faq-question">Is my location data stored?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Your GPS location (Find Me button) is only stored in your browser's localStorage — never sent to our servers. Route coordinates you enter manually are saved to your Firestore account for map display only.</div></div></div>
+        <div class="faq-item"><button class="faq-question">How do I delete my account?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">Go to <strong>Settings → Danger Zone</strong> and click "Delete Account". You'll be asked to type DELETE to confirm. This permanently removes your account and all data and cannot be undone.</div></div></div>
+        <div class="faq-item"><button class="faq-question">Can I use EcoTrack offline?<svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></button><div class="faq-answer"><div class="faq-answer-inner">EcoTrack is a Progressive Web App (PWA) — you can install it on your device from the browser menu. The dashboard shell loads offline, but activity logging and chart data require an internet connection to sync with Firebase.</div></div></div>
+      </div>
+
+      <!-- Video tutorials -->
+      <div class="card">
+        <div class="card-header" style="padding:0;margin-bottom:16px"><div class="card-title">Video Tutorials</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+          <div style="background:#f8f9fa;border-radius:12px;overflow:hidden;cursor:pointer">
+            <div style="background:linear-gradient(135deg,#1B4332,#2D6A4F);height:100px;display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="white" width="36" height="36"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </div>
+            <div style="padding:10px 12px"><div style="font-weight:600;font-size:13px">Getting Started</div><div style="font-size:11.5px;color:#6b7280;margin-top:2px">2 min intro</div></div>
+          </div>
+          <div style="background:#f8f9fa;border-radius:12px;overflow:hidden;cursor:pointer">
+            <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);height:100px;display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="white" width="36" height="36"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </div>
+            <div style="padding:10px 12px"><div style="font-weight:600;font-size:13px">Logging Activities</div><div style="font-size:11.5px;color:#6b7280;margin-top:2px">3 min walkthrough</div></div>
+          </div>
+          <div style="background:#f8f9fa;border-radius:12px;overflow:hidden;cursor:pointer">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a78bfa);height:100px;display:flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="white" width="36" height="36"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </div>
+            <div style="padding:10px 12px"><div style="font-weight:600;font-size:13px">Reading Your Score</div><div style="font-size:11.5px;color:#6b7280;margin-top:2px">4 min deep-dive</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Keyboard shortcuts -->
+      <div class="card">
+        <div class="card-header" style="padding:0;margin-bottom:16px"><div class="card-title">Keyboard Shortcuts</div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+          <thead><tr><th style="text-align:left;padding:8px 0;color:#6b7280;font-weight:500;border-bottom:1px solid #f0f0f0">Action</th><th style="text-align:right;padding:8px 0;color:#6b7280;font-weight:500;border-bottom:1px solid #f0f0f0">Shortcut</th></tr></thead>
+          <tbody>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f8f8f8">Open search</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid #f8f8f8"><kbd style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-size:12px">⌘K</kbd></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f8f8f8">Go to Dashboard</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid #f8f8f8"><kbd style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-size:12px">G D</kbd></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f8f8f8">Log Activity</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid #f8f8f8"><kbd style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-size:12px">G L</kbd></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f8f8f8">Open EcoBot</td><td style="text-align:right;padding:10px 0;border-bottom:1px solid #f8f8f8"><kbd style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-size:12px">⌘E</kbd></td></tr>
+            <tr><td style="padding:10px 0">Toggle dark mode</td><td style="text-align:right;padding:10px 0"><kbd style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:5px;padding:2px 7px;font-size:12px">⌘\</kbd></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Contact support -->
+      <div class="card">
+        <div class="card-header" style="padding:0;margin-bottom:16px">
+          <div class="card-title">Contact Support</div>
+          <div class="card-subtitle">We'll respond within 24 hours</div>
+        </div>
+        <form id="help-contact-form" style="display:flex;flex-direction:column;gap:14px">
+          <div class="form-group">
+            <label class="form-label" for="ticket-name">Your Name</label>
+            <input type="text" id="ticket-name" class="form-input" required placeholder="Alex Smith" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ticket-email">Email Address</label>
+            <input type="email" id="ticket-email" class="form-input" required placeholder="alex@example.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ticket-message">Message</label>
+            <textarea id="ticket-message" class="form-input" rows="4" required placeholder="Describe your issue or question…" style="resize:vertical"></textarea>
+          </div>
+          <button type="submit" id="btn-submit-ticket" class="btn btn-primary" style="align-self:flex-start;padding:10px 24px">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MAP VIEW
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="view-map" class="view hidden" aria-label="Eco Map" style="display:flex;flex-direction:column;height:calc(100vh - 60px)">
+    <div class="map-page-header">
+      <div>
+        <h1 class="page-title" style="margin:0">🗺️ Eco Map</h1>
+        <p class="page-subtitle" style="margin:4px 0 0">Visualise your carbon footprint geographically</p>
+      </div>
+    </div>
+    <div class="map-body">
+      <!-- Left sidebar -->
+      <div class="map-sidebar">
+        <div class="map-sidebar-section">
+          <div class="map-sidebar-label">Layers</div>
+          <button class="map-layer-toggle active" id="toggle-routes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            My Routes
+          </button>
+          <button class="map-layer-toggle" id="toggle-heatmap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+            Heatmap
+          </button>
+          <button class="map-layer-toggle" id="toggle-spots">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Green Spots
+          </button>
+        </div>
+
+        <div class="map-sidebar-section">
+          <div class="map-sidebar-label">Stats</div>
+          <div class="map-stat-box">
+            <div class="map-stat-value" id="map-stat-km">0</div>
+            <div class="map-stat-label">km travelled this month</div>
+          </div>
+        </div>
+
+        <div class="map-sidebar-section">
+          <div class="map-sidebar-label">Actions</div>
+          <button class="map-sidebar-btn" id="btn-find-me">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+            Find Me
+          </button>
+          <button class="map-sidebar-btn" id="btn-draw-route">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>
+            Draw Route
+          </button>
+          <button class="map-sidebar-btn" id="btn-highlight-worst">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Worst Route
+          </button>
+          <button class="map-sidebar-btn" id="btn-export-gpx">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export GPX
+          </button>
+        </div>
+      </div>
+
+      <!-- Map container -->
+      <div id="eco-map-container">
+        <div id="eco-map"></div>
+        <!-- Route draw form -->
+        <div class="map-route-form" id="map-route-form">
+          <input type="text" id="route-from" class="map-location-input" placeholder="From (e.g. London)" style="flex:1;min-width:120px" />
+          <input type="text" id="route-to" class="map-location-input" placeholder="To (e.g. Manchester)" style="flex:1;min-width:120px" />
+          <input type="text" id="route-name" class="map-location-input" placeholder="Label" style="flex:0 0 100px" />
+          <input type="number" id="route-co2" class="map-location-input" placeholder="CO₂ kg" style="flex:0 0 80px" min="0" />
+          <button class="btn btn-primary" id="btn-add-route" style="padding:8px 16px;font-size:13px">Add Route</button>
+          <button class="btn btn-outline" onclick="document.getElementById('map-route-form').classList.remove('visible')" style="padding:8px 14px;font-size:13px">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       IMPORT VIEW
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="view-import" class="view hidden" aria-label="Import Data">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1 class="page-title">Import Data</h1>
+        <p class="page-subtitle">Upload a CSV file to bulk-import activity data.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline" id="btn-sample-csv" aria-label="Download sample CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Sample CSV
+        </button>
+      </div>
+    </div>
+    <div style="max-width:720px;margin:0 auto;padding:0 28px 40px;display:flex;flex-direction:column;gap:20px">
+
+      <!-- Format info -->
+      <div class="card" style="background:#f0fdf4;border:1.5px solid #bbf7d0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="font-size:20px">📋</span>
+          <div>
+            <div style="font-weight:600;font-size:13.5px;color:#1B4332;margin-bottom:4px">Required CSV Format</div>
+            <code style="font-size:12px;color:#374151">date, category, activity, amount, unit</code>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px">Example: <code>2025-06-01, transport, Car commute, 150, km</code></div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px">Categories: transport, food, energy, shopping</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="card import-drop-zone" id="import-drop-zone" role="button" tabindex="0" aria-label="Upload CSV file" style="border:2px dashed #d1d5db;background:#fafafa;text-align:center;padding:40px 20px;cursor:pointer;transition:all 0.2s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="font-weight:600;font-size:14px;color:#374151">Drop your CSV here or click to browse</div>
+        <div style="font-size:12.5px;color:#9ca3af;margin-top:6px">Max 500 rows · .csv files only</div>
+        <input type="file" id="import-file-input" accept=".csv" style="display:none" aria-label="Choose CSV file" />
+      </div>
+      <style>.import-drop-zone.drag-over { border-color:#52B788!important; background:#f0fdf4!important; }</style>
+
+      <!-- Errors -->
+      <div id="import-errors" class="hidden" style="background:#fee2e2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;font-size:13px;color:#dc2626"></div>
+
+      <!-- Preview section -->
+      <div id="import-preview-section" class="hidden">
+        <div class="card">
+          <div class="card-header" style="padding:0;margin-bottom:12px">
+            <div>
+              <div class="card-title">Preview</div>
+              <div class="card-subtitle" id="import-row-count"></div>
+            </div>
+            <div style="font-size:13px;color:#6b7280" id="import-file-name"></div>
+          </div>
+          <div style="overflow-x:auto">
+            <table id="import-preview-table" style="width:100%;border-collapse:collapse;font-size:13px" class="import-preview-table"></table>
+          </div>
+          <div style="font-size:12px;color:#9ca3af;margin-top:8px" id="import-preview-note"></div>
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <button class="btn btn-primary" id="btn-confirm-import" style="padding:10px 24px">Confirm Import</button>
+            <button class="btn btn-outline" id="btn-cancel-import" style="padding:10px 20px">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ECOBOT FLOATING WIDGET
+  ══════════════════════════════════════════════════════════════ -->
+  <button id="ecobot-fab" aria-label="Open EcoBot AI assistant" title="Chat with EcoBot">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M12 2C9.24 2 7 4.24 7 7v4h10V7c0-2.76-2.24-5-5-5z"/>
+      <circle cx="9" cy="14" r="1" fill="currentColor"/>
+      <circle cx="15" cy="14" r="1" fill="currentColor"/>
+      <line x1="9" y1="17" x2="15" y2="17" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <div id="ecobot-panel" role="dialog" aria-label="EcoBot AI assistant" aria-modal="true">
+    <div id="ecobot-header">
+      <div class="ecobot-avatar" aria-hidden="true">🌿</div>
+      <div class="ecobot-header-text">
+        <div class="ecobot-name">EcoBot</div>
+        <div class="ecobot-status">
+          <span class="ecobot-status-dot" aria-hidden="true"></span>
+          Your carbon coach
+        </div>
+      </div>
+      <button id="ecobot-close" aria-label="Close EcoBot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="ecobot-messages" role="log" aria-live="polite" aria-label="Chat messages"></div>
+    <div id="ecobot-input-area">
+      <textarea id="ecobot-input" placeholder="Ask EcoBot anything…" rows="1" aria-label="Type your message"></textarea>
+      <button id="ecobot-send" disabled aria-label="Send message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── App Scripts ────────────────────────────────────────────────────── -->
+  <script src="/static/js/firebase-config.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/firestore.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <script src="/static/js/calculator.js"></script>
+  <script src="/static/js/challenges.js"></script>
+  <script src="/static/js/insights.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/notifications.js"></script>
+  <script src="/static/js/settings.js"></script>
+  <script src="/static/js/import.js"></script>
+  <script src="/static/js/help.js"></script>
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/ecobot.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/dashboard-ui.js"></script>
+
+  <!-- PWA Service Worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/service-worker.js')
+          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'e') { e.preventDefault(); window.EcoBot?.togglePanel(); }
+        if (e.key === '\\') { e.preventDefault(); window.EcoSettings?.applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'); }
+      }
+      if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (e.key === 'g') { window._gPressed = true; setTimeout(()=>window._gPressed=false, 1000); }
+        if (window._gPressed) {
+          if (e.key === 'd') { e.preventDefault(); window.EcoApp?.navigate('dashboard'); }
+          if (e.key === 'l') { e.preventDefault(); window.EcoApp?.navigate('calculator'); }
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "EcoTrack",
+  "short_name": "EcoTrack",
+  "description": "Track, reduce, and offset your personal carbon footprint",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1B4332",
+  "theme_color": "#1B4332",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231B4332'/><path d='M96 20C65 20 40 50 40 84c0 26 16 46 38 56v-18c0-18 12-30 18-36 6 6 18 18 18 36v18c22-10 38-30 38-56 0-34-25-64-56-64z' fill='%2352B788'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%231B4332'/><path d='M256 50C170 50 105 130 105 220c0 70 42 122 100 148v-48c0-48 32-80 51-96 19 16 51 48 51 96v48c58-26 100-78 100-148 0-90-65-170-151-170z' fill='%2352B788'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["lifestyle", "productivity"],
+  "screenshots": [],
+  "lang": "en-US"
+}

@@ -1,0 +1,51 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Environment variables / secrets ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+serviceAccountKey.json
+*.pem
+*.key
+
+# ── IDE / editors ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ── Testing / coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.coveragerc
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Flask / Werkzeug ──────────────────────────────────────────────────────────
+instance/
+flask_session/
+
+# ── Node (if ever added) ──────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
