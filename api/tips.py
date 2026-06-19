@@ -65,7 +65,6 @@ TIPS: dict[str, list[str]] = {
 }
 
 
-
 # ── Gemini AI tip engine ─────────────────────────────────────────────────────
 
 def call_gemini_tips(
