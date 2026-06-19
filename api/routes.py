@@ -22,32 +22,28 @@ POST /api/notifications/mark-read – mark user notifications as read
 from __future__ import annotations
 
 import html
-import io
-import json
 import logging
 import os
-import re
-import csv as csv_module
 from datetime import datetime, timezone
 from functools import wraps
 
 import requests
-from flask import Blueprint, jsonify, request, current_app, g
+from flask import Blueprint, jsonify, request
 # pyrefly: ignore [missing-import]
 from flask_limiter import Limiter
-# pyrefly: ignore [missing-import]
-from flask_limiter.util import get_remote_address
 
 from api.calculator import calculate_footprint, CalculationError
 from api.tips import call_gemini_tips, get_tips
 from api.challenges import get_all_challenges
 
-# Optional: Firebase Admin (gracefully skipped in test mode)
+# Optional: Firebase Admin (gracefully skipped in test mode). FieldFilter is
+# imported here once — at module load — rather than inside request handlers,
+# so per-request calls never pay a repeated import cost.
 try:
     # pyrefly: ignore [missing-import]
-    import firebase_admin
-    # pyrefly: ignore [missing-import]
     from firebase_admin import firestore as fs
+    # pyrefly: ignore [missing-import]
+    from google.cloud.firestore_v1.base_query import FieldFilter
     _FIRESTORE_AVAILABLE = True
 except ImportError:
     _FIRESTORE_AVAILABLE = False
@@ -55,6 +51,9 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+# Firestore commits at most 500 writes per batch; stay safely under that cap.
+_FIRESTORE_BATCH_LIMIT = 450
 
 # ── Limiter is initialised in app.py; imported here for decorator use ───────
 _limiter: Limiter | None = None
@@ -191,9 +190,10 @@ def calculate():
             db = _get_firestore()
             if db:
                 try:
+                    now_iso = datetime.now(timezone.utc).isoformat()
                     doc = {
                         **breakdown,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": now_iso,
                         "inputs": {
                             k: data[k]
                             for k in (
@@ -210,9 +210,8 @@ def calculate():
                         if coord_key in data:
                             doc[coord_key] = float(data[coord_key])
 
-                    db.collection("users").document(uid).collection(
-                        "history"
-                    ).add(doc)
+                    user_ref = db.collection("users").document(uid)
+                    user_ref.collection("history").add(doc)
 
                     # Auto-create a notification for this activity log
                     try:
@@ -221,11 +220,9 @@ def calculate():
                             "icon": "🌿",
                             "text": f"Activity logged: {breakdown['total']:.1f} kg CO₂e",
                             "read": False,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "timestamp": now_iso,
                         }
-                        db.collection("users").document(uid).collection(
-                            "notifications"
-                        ).add(notif)
+                        user_ref.collection("notifications").add(notif)
                     except Exception:
                         pass  # Non-fatal
 
@@ -245,7 +242,7 @@ def calculate():
 
     except CalculationError as exc:
         return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /calculate")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -292,7 +289,7 @@ def history():
         records = [{"id": d.id, **d.to_dict()} for d in docs]
         return jsonify({"history": records}), 200
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /history")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -327,7 +324,7 @@ def tips():
         return jsonify({"tips": get_tips(breakdown, max_tips)}), 200
     except ValueError as exc:
         return jsonify({"error": f"Invalid parameter: {exc}"}), 400
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /tips")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -345,7 +342,7 @@ def challenges():
     """
     try:
         return jsonify(get_all_challenges()), 200
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /challenges")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -521,7 +518,7 @@ def ecobot():
 
         return jsonify({"reply": reply, "provider": provider}), 200
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /ecobot")
         return jsonify({"reply": "Sorry, I'm having a moment! Try again shortly. 🤖", "provider": "error"}), 200
 
@@ -572,7 +569,7 @@ def support_ticket():
 
         return jsonify({"success": True, "message": "Ticket submitted. We'll respond within 24h!"}), 200
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /support-ticket")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -613,6 +610,16 @@ def import_activities():
         db = _get_firestore()
         imported = 0
         skipped  = 0
+        now_iso  = datetime.now(timezone.utc).isoformat()
+
+        # Accumulate writes into a single batch (committed in chunks) so a
+        # 500-row import is a handful of round-trips rather than 500.
+        activities_ref = (
+            db.collection("users").document(uid).collection("activities")
+            if db else None
+        )
+        batch = db.batch() if db else None
+        pending = 0
 
         for row in rows:
             try:
@@ -633,26 +640,29 @@ def import_activities():
                     "amount":    amount,
                     "unit":      unit,
                     "source":    "csv_import",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": now_iso,
                 }
 
                 if db:
                     # Duplicate check: date + category + activity
-                    from google.cloud.firestore_v1.base_query import FieldFilter
                     existing = (
-                        db.collection("users").document(uid)
-                        .collection("activities")
+                        activities_ref
                         .where(filter=FieldFilter("date",     "==", date))
                         .where(filter=FieldFilter("category", "==", category))
                         .where(filter=FieldFilter("activity", "==", activity))
                         .limit(1)
                         .stream()
                     )
-                    if any(True for _ in existing):
+                    if next(existing, None) is not None:
                         skipped += 1
                         continue
 
-                    db.collection("users").document(uid).collection("activities").add(doc)
+                    batch.set(activities_ref.document(), doc)
+                    pending += 1
+                    if pending >= _FIRESTORE_BATCH_LIMIT:
+                        batch.commit()
+                        batch = db.batch()
+                        pending = 0
 
                 imported += 1
 
@@ -660,9 +670,12 @@ def import_activities():
                 skipped += 1
                 continue
 
+        if db and pending:
+            batch.commit()
+
         return jsonify({"imported": imported, "skipped": skipped}), 200
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /import")
         return jsonify({"error": "Internal server error."}), 500
 
@@ -698,28 +711,37 @@ def mark_notifications_read():
             return jsonify({"updated": 0, "warning": "Firestore unavailable."}), 200
 
         notif_ref = db.collection("users").document(uid).collection("notifications")
-        updated = 0
 
+        # Resolve the set of notification documents to mark read, either from
+        # the explicit id list (capped at 50) or from a query for all unread.
         if ids:
-            for nid in ids[:50]:
-                try:
-                    notif_ref.document(str(nid)).update({"read": True})
-                    updated += 1
-                except Exception:
-                    pass
+            targets = [notif_ref.document(str(nid)) for nid in ids[:50]]
         else:
-            # Mark all unread
-            from google.cloud.firestore_v1.base_query import FieldFilter
-            docs = notif_ref.where(filter=FieldFilter("read", "==", False)).stream()
-            for d in docs:
-                try:
-                    notif_ref.document(d.id).update({"read": True})
-                    updated += 1
-                except Exception:
-                    pass
+            targets = [
+                notif_ref.document(d.id)
+                for d in notif_ref.where(
+                    filter=FieldFilter("read", "==", False)
+                ).stream()
+            ]
+
+        # One batched write per chunk instead of an update per notification.
+        # set(merge=True) is safe even if an id no longer exists.
+        updated = 0
+        batch = db.batch()
+        pending = 0
+        for ref in targets:
+            batch.set(ref, {"read": True}, merge=True)
+            updated += 1
+            pending += 1
+            if pending >= _FIRESTORE_BATCH_LIMIT:
+                batch.commit()
+                batch = db.batch()
+                pending = 0
+        if pending:
+            batch.commit()
 
         return jsonify({"updated": updated}), 200
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected error in /notifications/mark-read")
         return jsonify({"error": "Internal server error."}), 500
