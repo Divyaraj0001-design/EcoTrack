@@ -242,7 +242,7 @@ GROQ_API_KEY=...
 flask run --port 5001
 ```
 
-Access the app at **[http://127.0.0.1:5001](http://127.0.0.1:5001)**.
+The production app is hosted on Vercel — visit the live deployment at **[ecotrack-flask-app.vercel.app](https://ecotrack-flask-app.vercel.app)**.
 
 ---
 
