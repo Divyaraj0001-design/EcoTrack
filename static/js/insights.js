@@ -416,10 +416,31 @@ window.EcoInsights = {
     initInsights();
   },
   /** Called whenever the Insights tab is navigated to. */
-  refresh() {
-    if (_lastBreakdown) {
-      _renderEquivalents(_lastBreakdown.total || 0);
-      _renderAnalytics(_lastBreakdown);
+  async refresh() {
+    // Prefer a fresh in-session calculation; otherwise fall back to the most
+    // recent entry stored in Firestore so the Insights tab populates on a
+    // plain page-load / login (matching the Dashboard's behaviour).
+    let breakdown = _lastBreakdown;
+
+    if (!breakdown) {
+      const user = window.EcoAuth?.currentUser?.();
+      if (user && window.EcoStore) {
+        const history = await window.EcoStore.getHistory(user.uid, 30);
+        if (history && history.length > 0) {
+          _insightsState.history       = history;
+          breakdown                    = history[0];
+          _insightsState.latestTotal   = breakdown.total  || 0;
+          _insightsState.latestEnergy  = breakdown.energy || 0;
+          if (_insightsState.totalCalcs < history.length) {
+            _insightsState.totalCalcs = history.length;
+          }
+        }
+      }
+    }
+
+    if (breakdown) {
+      _renderEquivalents(breakdown.total || 0);
+      _renderAnalytics(breakdown);
       _animateNumbers();
     }
     _renderBadges();
