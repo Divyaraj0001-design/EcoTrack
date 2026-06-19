@@ -15,6 +15,12 @@
 
 <br/>
 
+### 🔗 [**Live Demo → ecotrack-flask-app.vercel.app**](https://ecotrack-flask-app.vercel.app)
+
+[![Live on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://ecotrack-flask-app.vercel.app)
+
+<br/>
+
 ![Dashboard Screenshot](./docs/screenshot-dashboard.png)
 
 </div>
@@ -28,6 +34,8 @@
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
 - [AI Engine (EcoBot)](#-ai-engine-ecobot)
 - [API Reference](#-api-reference)
 - [Carbon Calculation Logic](#-carbon-calculation-logic)
@@ -41,7 +49,7 @@
 
 Individual lifestyle choices account for roughly **20–30% of total greenhouse gas emissions** in developed economies. Most people lack an accessible, personalised tool to understand their specific carbon impact.
 
-**EcoTrack** bridges this gap — a full-stack SPA that helps users:
+**EcoTrack** bridges this gap — a full-stack SPA (live at **[ecotrack-flask-app.vercel.app](https://ecotrack-flask-app.vercel.app)**) that helps users:
 
 - 📊 **Calculate** their carbon footprint across 4 lifestyle categories
 - 📈 **Visualise** weekly emission trends and monthly goal progress
@@ -88,9 +96,12 @@ EcoTrack has recently undergone a massive overhaul with a **"Donezo"-inspired De
 |---|---|
 | **Python 3.12** | Runtime |
 | **Flask 3.0** | Web framework + REST API |
+| **Gunicorn** | Production WSGI server |
 | **Groq / Ollama / Gemini** | AI Agents & Tip generation |
 | **Flask-Limiter** | Rate limiting for API stability |
+| **Flask-CORS** | Cross-origin request handling |
 | **Firebase Admin SDK** | Server-side Firestore operations |
+| **Pytest / pytest-cov** | Unit & integration testing, coverage |
 
 ### Frontend
 | Technology | Purpose |
@@ -107,6 +118,8 @@ EcoTrack has recently undergone a massive overhaul with a **"Donezo"-inspired De
 | **Firebase Auth** | Secure Email/Password authentication |
 | **Firebase Firestore** | NoSQL database for footprints, settings, notifications |
 | **Firebase Hosting** | Static asset delivery |
+| **Render** | Primary production deployment (Gunicorn + `render.yaml`) |
+| **Vercel** | Alternative serverless Python deployment (`vercel.json`) |
 
 ---
 
@@ -117,7 +130,13 @@ EcoTrack/
 ├── app.py                    # Flask application factory
 ├── config.py                 # Configuration loader (Dev/Prod)
 ├── requirements.txt          # Python dependencies
-├── .env.example              # Environment variables template
+├── runtime.txt                # Python runtime version pin (Render)
+├── Procfile                  # Gunicorn start command (Render/Heroku-style)
+├── render.yaml                # Render deployment + env var manifest
+├── vercel.json                # Vercel serverless deployment config
+├── firebase.json              # Firebase Hosting config
+├── .firebaserc                 # Firebase project alias
+├── .env.example               # Environment variables template
 ├── api/
 │   ├── routes.py             # Flask Blueprint for all REST APIs
 │   ├── calculator.py         # CO₂ calculation logic + Error handling
@@ -125,25 +144,40 @@ EcoTrack/
 │   └── challenges.py         # Gamification challenges dataset
 ├── templates/
 │   └── index.html            # Main SPA shell (Injects Firebase config)
-└── static/
-    ├── manifest.json         # PWA Manifest
-    ├── service-worker.js     # PWA Service Worker for offline support
-    ├── css/
-    │   ├── styles.css        # Main layout & component styles
-    │   ├── dark-mode.css     # Dark mode overrides
-    │   ├── ecobot.css        # AI chat widget styles
-    │   └── map.css           # Leaflet map container styles
-    └── js/
-        ├── app.js            # Core SPA Router and App initialization
-        ├── auth.js           # Firebase Auth logic
-        ├── ecobot.js         # Chatbot client logic
-        ├── map.js            # Leaflet map rendering & layers
-        ├── dashboard-ui.js   # Chart.js rendering & dashboard logic
-        ├── settings.js       # User preferences & account management
-        ├── import.js         # CSV bulk data import
-        ├── help.js           # FAQ search and support ticketing
-        ├── notifications.js  # Notifications and announcements polling
-        └── firestore.js      # Core Firebase data operations
+├── static/
+│   ├── manifest.json         # PWA Manifest
+│   ├── service-worker.js     # PWA Service Worker for offline support
+│   ├── css/
+│   │   ├── styles.css        # Main layout & component styles
+│   │   ├── dark-mode.css     # Dark mode overrides
+│   │   ├── ecobot.css        # AI chat widget styles
+│   │   └── map.css           # Leaflet map container styles
+│   └── js/
+│       ├── app.js              # Core SPA Router and App initialization
+│       ├── auth.js             # Firebase Auth logic
+│       ├── firebase-config.js  # Firebase Web SDK initialization
+│       ├── firestore.js        # Core Firebase data operations
+│       ├── calculator.js       # Client-side footprint calculator UI
+│       ├── dashboard.js        # Dashboard view logic
+│       ├── dashboard-ui.js     # Chart.js rendering & dashboard widgets
+│       ├── charts.js           # Chart.js helpers & datasets
+│       ├── insights.js         # Trends & insights rendering
+│       ├── challenges.js       # Gamification challenges UI
+│       ├── ecobot.js           # Chatbot client logic
+│       ├── map.js              # Leaflet map rendering & layers
+│       ├── settings.js         # User preferences & account management
+│       ├── import.js           # CSV bulk data import
+│       ├── help.js             # FAQ search and support ticketing
+│       └── notifications.js    # Notifications and announcements polling
+├── tests/
+│   ├── conftest.py            # Pytest fixtures (app, mock Firebase, etc.)
+│   ├── test_api.py            # API route tests
+│   ├── test_calculator.py     # Carbon calculation unit tests
+│   ├── test_routes_firestore.py # Firestore-backed route integration tests
+│   └── test_validation.py     # Input validation tests
+└── docs/
+    ├── screenshot-dashboard.png
+    └── screenshot-login.png
 ```
 
 ---
@@ -164,8 +198,8 @@ EcoTrack/
 ### 1 — Clone the repo
 
 ```bash
-git clone https://github.com/your-username/ecotrack.git
-cd ecotrack
+git clone https://github.com/Divyaraj0001-design/EcoTrack.git
+cd EcoTrack
 ```
 
 ### 2 — Virtual Environment & Dependencies
@@ -212,6 +246,41 @@ Access the app at **[http://127.0.0.1:5001](http://127.0.0.1:5001)**.
 
 ---
 
+## 🧪 Testing
+
+The test suite uses **Pytest** with mocked Firebase/Firestore fixtures so tests run without live credentials.
+
+```bash
+pytest                     # run the full suite
+pytest --cov=api --cov=app # run with coverage report
+```
+
+Test files live in [tests/](tests/):
+- `test_api.py` — API route smoke tests
+- `test_calculator.py` — carbon calculation unit tests
+- `test_routes_firestore.py` — Firestore-backed route integration tests
+- `test_validation.py` — input validation tests
+
+---
+
+## ☁️ Deployment
+
+EcoTrack ships with config for two deployment targets:
+
+### Render (recommended)
+- `render.yaml` defines the web service, build/start commands, and required env vars.
+- `Procfile` and `runtime.txt` pin the Gunicorn start command and Python version.
+- Push to a connected GitHub repo and Render builds/deploys automatically using `gunicorn app:app`.
+
+### Vercel — **currently live** 🟢
+- **Live URL:** [https://ecotrack-flask-app.vercel.app](https://ecotrack-flask-app.vercel.app)
+- `vercel.json` configures `app.py` to run as a Python serverless function via `@vercel/python`.
+- Run `vercel` from the project root, or connect the repo in the Vercel dashboard for automatic deploys on push to `main`.
+
+In both cases, set the same environment variables from `.env.example` (Firebase config, `GROQ_API_KEY`, `GEMINI_API_KEY`, etc.) in the platform's dashboard/secrets — `serviceAccountKey.json` should be uploaded as a secret file or its contents set via an env var rather than committed.
+
+---
+
 ## 🤖 AI Engine (EcoBot)
 
 The `/api/ecobot` endpoint implements an advanced cascade system to ensure maximum uptime:
@@ -227,6 +296,7 @@ EcoBot receives the user's name, recent footprint data (Transport, Food, Energy,
 
 Endpoints are rate-limited and prefixed with `/api`.
 
+- `GET /api/health`: Health check (used by uptime monitors / load balancers).
 - `POST /api/calculate`: Calculate emissions and save to Firestore.
 - `GET /api/history`: Fetch user's historical footprint entries.
 - `GET /api/tips`: Fetch personalized Gemini AI suggestions based on emission categories.
