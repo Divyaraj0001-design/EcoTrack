@@ -138,8 +138,9 @@ EcoTrack/
 ├── .firebaserc                 # Firebase project alias
 ├── .env.example               # Environment variables template
 ├── api/
-│   ├── routes.py             # Flask Blueprint for all REST APIs
+│   ├── routes.py             # Flask Blueprint for all REST APIs (HTTP layer only)
 │   ├── calculator.py         # CO₂ calculation logic + Error handling
+│   ├── ecobot.py             # EcoBot AI engine (Groq → Ollama → fallback)
 │   ├── tips.py               # Gemini tips integration
 │   └── challenges.py         # Gamification challenges dataset
 ├── templates/
@@ -330,6 +331,9 @@ Scores below 150 kg/mo are considered **Good/Excellent**, while scores above 300
 - **Stateless API Backend**: Flask operates entirely as an API for the vanilla JS frontend.
 - **Secure Firebase Config**: API keys for Firebase Web SDK are injected dynamically via Jinja2 into the SPA shell, preventing hardcoding in static files.
 - **Rate Limiting**: `Flask-Limiter` protects AI and calculation endpoints to prevent abuse.
+- **Hardened HTTP Headers**: Every response carries a scoped `Content-Security-Policy`, `HSTS`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` (see `app.py`).
+- **No Weak Secrets in Production**: `ProductionConfig` refuses the development fallback key — it requires `FLASK_SECRET_KEY` from the environment, falling back to a cryptographically random key.
+- **Input Sanitisation**: All user-supplied strings are HTML-escaped (`html.escape`) before storage to prevent stored XSS.
 - **Service Account Isolation**: `serviceAccountKey.json` is excluded from Git to prevent backend credential leaks.
 
 ---

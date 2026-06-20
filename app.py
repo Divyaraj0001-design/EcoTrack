@@ -89,6 +89,9 @@ def create_app(config=None) -> Flask:
     # ── Register Blueprint ────────────────────────────────────────────────────
     app.register_blueprint(api_bp)
 
+    # ── Security headers ──────────────────────────────────────────────────────
+    _register_security_headers(app)
+
     # ── SPA Shell ─────────────────────────────────────────────────────────────
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
@@ -125,6 +128,53 @@ def create_app(config=None) -> Flask:
 
     logger.info("Carbon Footprint Platform app created (env=%s)", os.environ.get("FLASK_ENV", "development"))
     return app
+
+
+# Content-Security-Policy scoped to the third-party origins the app actually
+# uses (jsDelivr/unpkg for Chart.js & Leaflet, Google Fonts, Firebase, and
+# OpenStreetMap tiles/geocoding). 'unsafe-inline' is required for the inline
+# Firebase config bootstrap and component styles; everything else is locked
+# down to known hosts.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com "
+    "https://www.gstatic.com https://*.googleapis.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com "
+    "https://cdn.jsdelivr.net https://unpkg.com; "
+    "font-src 'self' data: https://fonts.gstatic.com; "
+    "img-src 'self' data: blob: https:; "
+    "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com "
+    "https://*.firebaseapp.com https://nominatim.openstreetmap.org "
+    "https://overpass-api.de https://*.tile.openstreetmap.org; "
+    "frame-src 'self' https://*.firebaseapp.com; "
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+)
+
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": _CSP,
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(self), microphone=(), camera=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+
+
+def _register_security_headers(app: Flask) -> None:
+    """
+    Attach hardening response headers (CSP, HSTS, anti-clickjacking, …) to
+    every response so the app ships sane browser-side security defaults.
+
+    Parameters
+    ----------
+    app : Flask
+        The application to register the ``after_request`` hook on.
+    """
+    @app.after_request
+    def _apply_security_headers(response):
+        for header, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
 
 
 def _init_firebase(cfg) -> None:

@@ -9,6 +9,8 @@ the frontend JS (those values are injected through Jinja2 context only).
 """
 
 import os
+import secrets
+
 from dotenv import load_dotenv
 
 # Load .env file if it exists (development convenience)
@@ -64,6 +66,11 @@ class ProductionConfig(Config):
 
     DEBUG = False
     CORS_ORIGINS = []  # Set via env / Firebase Hosting headers in production
+
+    # Never ship the insecure development fallback to production. If no key is
+    # supplied via the environment, fall back to a strong per-process random
+    # key so the app stays bootable while still refusing the known-weak default.
+    SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
 
 # Map string to config class
