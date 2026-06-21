@@ -8,6 +8,7 @@ Challenges rotate based on the current day-of-week (daily) or ISO week number
 """
 
 from __future__ import annotations
+
 import datetime
 
 # ── Challenge databases ─────────────────────────────────────────────────────

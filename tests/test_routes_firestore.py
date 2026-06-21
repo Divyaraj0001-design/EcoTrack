@@ -15,11 +15,10 @@ Run with:  pytest tests/test_routes_firestore.py -v
 """
 
 import json
-import pytest
 from unittest.mock import MagicMock, patch
 
-
 # ── /api/history ──────────────────────────────────────────────────────────────
+
 
 class TestHistory:
     """Tests for GET /api/history."""
@@ -61,12 +60,14 @@ class TestHistory:
 
         mock_db = MagicMock()
         # Chain: .collection().document().collection().order_by().limit().stream()
-        mock_db.collection.return_value.document.return_value \
-            .collection.return_value.order_by.return_value \
-            .limit.return_value.stream.return_value = iter([mock_doc])
+        mock_db.collection.return_value.document.return_value.collection.return_value.order_by.return_value.limit.return_value.stream.return_value = iter(
+            [mock_doc]
+        )
 
-        with patch("api.routes._get_firestore", return_value=mock_db), \
-             patch("api.routes._FIRESTORE_AVAILABLE", True):
+        with (
+            patch("api.routes._get_firestore", return_value=mock_db),
+            patch("api.routes._FIRESTORE_AVAILABLE", True),
+        ):
             resp = client.get("/api/history?uid=test-user-123&limit=5")
 
         assert resp.status_code == 200
@@ -77,6 +78,7 @@ class TestHistory:
 
 
 # ── /api/support-ticket ───────────────────────────────────────────────────────
+
 
 class TestSupportTicket:
     """Tests for POST /api/support-ticket."""
@@ -157,6 +159,7 @@ class TestSupportTicket:
 
 # ── /api/import ───────────────────────────────────────────────────────────────
 
+
 class TestImport:
     """Tests for POST /api/import."""
 
@@ -180,8 +183,15 @@ class TestImport:
 
     def test_exceeding_500_rows_returns_400(self, client):
         """More than 500 rows must return 400."""
-        rows = [{"date": "2026-01-01", "category": "transport",
-                 "activity": "car", "amount": 1, "unit": "km"}] * 501
+        rows = [
+            {
+                "date": "2026-01-01",
+                "category": "transport",
+                "activity": "car",
+                "amount": 1,
+                "unit": "km",
+            }
+        ] * 501
         resp = client.post(
             "/api/import",
             data=json.dumps({"uid": "u1", "rows": rows}),
@@ -192,8 +202,13 @@ class TestImport:
     def test_valid_rows_without_firestore(self, client):
         """Valid rows with no Firestore should still return imported count."""
         rows = [
-            {"date": "2026-06-01", "category": "transport",
-             "activity": "car trip", "amount": 50, "unit": "km"},
+            {
+                "date": "2026-06-01",
+                "category": "transport",
+                "activity": "car trip",
+                "amount": 50,
+                "unit": "km",
+            },
         ]
         resp = client.post(
             "/api/import",
@@ -223,16 +238,25 @@ class TestImport:
         """Valid rows with a Firestore mock should call add() for each non-duplicate."""
         mock_db = MagicMock()
         # Simulate no existing duplicates (empty stream)
-        mock_db.collection.return_value.document.return_value \
-            .collection.return_value.where.return_value \
-            .where.return_value.where.return_value \
-            .limit.return_value.stream.return_value = iter([])
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.where.return_value.where.return_value.limit.return_value.stream.return_value = iter(
+            []
+        )
 
         rows = [
-            {"date": "2026-06-01", "category": "food",
-             "activity": "vegan meal", "amount": 1, "unit": "day"},
-            {"date": "2026-06-02", "category": "energy",
-             "activity": "electricity", "amount": 200, "unit": "kwh"},
+            {
+                "date": "2026-06-01",
+                "category": "food",
+                "activity": "vegan meal",
+                "amount": 1,
+                "unit": "day",
+            },
+            {
+                "date": "2026-06-02",
+                "category": "energy",
+                "activity": "electricity",
+                "amount": 200,
+                "unit": "kwh",
+            },
         ]
 
         with patch("api.routes._get_firestore", return_value=mock_db):
@@ -249,6 +273,7 @@ class TestImport:
 
 
 # ── /api/notifications/mark-read ─────────────────────────────────────────────
+
 
 class TestMarkNotificationsRead:
     """Tests for POST /api/notifications/mark-read."""
@@ -294,9 +319,9 @@ class TestMarkNotificationsRead:
         mock_doc.id = "notif-xyz"
 
         mock_db = MagicMock()
-        mock_db.collection.return_value.document.return_value \
-            .collection.return_value.where.return_value \
-            .stream.return_value = iter([mock_doc])
+        mock_db.collection.return_value.document.return_value.collection.return_value.where.return_value.stream.return_value = iter(
+            [mock_doc]
+        )
 
         with patch("api.routes._get_firestore", return_value=mock_db):
             resp = client.post(
@@ -328,6 +353,7 @@ class TestMarkNotificationsRead:
 
 
 # ── /api/ecobot (fallback) ────────────────────────────────────────────────────
+
 
 class TestEcoBotRoute:
     """Tests for POST /api/ecobot."""

@@ -34,9 +34,7 @@ class Config:
     FIREBASE_API_KEY: str = os.environ.get("FIREBASE_API_KEY", "")
     FIREBASE_AUTH_DOMAIN: str = os.environ.get("FIREBASE_AUTH_DOMAIN", "")
     FIREBASE_STORAGE_BUCKET: str = os.environ.get("FIREBASE_STORAGE_BUCKET", "")
-    FIREBASE_MESSAGING_SENDER_ID: str = os.environ.get(
-        "FIREBASE_MESSAGING_SENDER_ID", ""
-    )
+    FIREBASE_MESSAGING_SENDER_ID: str = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "")
     FIREBASE_APP_ID: str = os.environ.get("FIREBASE_APP_ID", "")
 
     # ── Google APIs ─────────────────────────────────────────────────────────
@@ -50,8 +48,10 @@ class Config:
 
     # ── CORS ────────────────────────────────────────────────────────────────
     CORS_ORIGINS: list = [
-        "http://localhost:5000", "http://127.0.0.1:5000",
-        "http://localhost:5001", "http://127.0.0.1:5001",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:5001",
+        "http://127.0.0.1:5001",
     ]
 
 

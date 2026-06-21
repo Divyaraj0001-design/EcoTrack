@@ -27,13 +27,14 @@ from datetime import datetime, timezone
 from functools import wraps
 
 from flask import Blueprint, jsonify, request
+
 # pyrefly: ignore [missing-import]
 from flask_limiter import Limiter
 
-from api.calculator import calculate_footprint, CalculationError
-from api.tips import call_gemini_tips, get_tips
+from api.calculator import CalculationError, calculate_footprint
 from api.challenges import get_all_challenges
 from api.ecobot import generate_reply as ecobot_reply
+from api.tips import call_gemini_tips, get_tips
 
 # Optional: Firebase Admin (gracefully skipped in test mode). FieldFilter is
 # imported here once — at module load — rather than inside request handlers,
@@ -41,8 +42,10 @@ from api.ecobot import generate_reply as ecobot_reply
 try:
     # pyrefly: ignore [missing-import]
     from firebase_admin import firestore as fs
+
     # pyrefly: ignore [missing-import]
     from google.cloud.firestore_v1.base_query import FieldFilter
+
     _FIRESTORE_AVAILABLE = True
 except ImportError:
     _FIRESTORE_AVAILABLE = False
@@ -80,17 +83,21 @@ def _rate_limited(limit: str = "60 per minute"):
     limit : str
         Rate limit string e.g. '30 per minute'.
     """
+
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
             return f(*args, **kwargs)
+
         if _limiter:
             wrapped = _limiter.limit(limit)(wrapped)
         return wrapped
+
     return decorator
 
 
 # ── Firestore helpers ────────────────────────────────────────────────────────
+
 
 def _get_firestore():
     """
@@ -127,6 +134,7 @@ def _sanitise(value: str) -> str:
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
+
 
 @api_bp.route("/health", methods=["GET"])
 def health():
@@ -196,10 +204,14 @@ def calculate():
                         "inputs": {
                             k: data[k]
                             for k in (
-                                "transport_mode", "transport_km",
-                                "diet_type", "food_days",
-                                "electricity_kwh", "gas_m3",
-                                "shopping_level", "shopping_weeks",
+                                "transport_mode",
+                                "transport_km",
+                                "diet_type",
+                                "food_days",
+                                "electricity_kwh",
+                                "gas_m3",
+                                "shopping_level",
+                                "shopping_weeks",
                             )
                             if k in data
                         },
@@ -348,6 +360,7 @@ def challenges():
 
 # ── EcoBot AI Chat ──────────────────────────────────────────────────────────
 
+
 @api_bp.route("/ecobot", methods=["POST"])
 @_rate_limited("20 per minute")
 def ecobot():
@@ -382,10 +395,13 @@ def ecobot():
 
     except Exception:
         logger.exception("Unexpected error in /ecobot")
-        return jsonify({"reply": "Sorry, I'm having a moment! Try again shortly. 🤖", "provider": "error"}), 200
+        return jsonify(
+            {"reply": "Sorry, I'm having a moment! Try again shortly. 🤖", "provider": "error"}
+        ), 200
 
 
 # ── Support Ticket ──────────────────────────────────────────────────────────
+
 
 @api_bp.route("/support-ticket", methods=["POST"])
 @_rate_limited("5 per minute")
@@ -407,8 +423,8 @@ def support_ticket():
     """
     try:
         data = request.get_json(force=True, silent=True) or {}
-        name    = _sanitise(data.get("name", "")).strip()
-        email   = _sanitise(data.get("email", "")).strip()
+        name = _sanitise(data.get("name", "")).strip()
+        email = _sanitise(data.get("email", "")).strip()
         message = _sanitise(data.get("message", "")).strip()
 
         if not name or not email or not message:
@@ -429,7 +445,9 @@ def support_ticket():
         else:
             logger.info("Support ticket (no Firestore): %s", ticket)
 
-        return jsonify({"success": True, "message": "Ticket submitted. We'll respond within 24h!"}), 200
+        return jsonify(
+            {"success": True, "message": "Ticket submitted. We'll respond within 24h!"}
+        ), 200
 
     except Exception:
         logger.exception("Unexpected error in /support-ticket")
@@ -459,7 +477,7 @@ def import_activities():
     """
     try:
         data = request.get_json(force=True, silent=True) or {}
-        uid  = _sanitise(data.get("uid", "")).strip()
+        uid = _sanitise(data.get("uid", "")).strip()
         rows = data.get("rows", [])
 
         if not uid:
@@ -471,45 +489,43 @@ def import_activities():
 
         db = _get_firestore()
         imported = 0
-        skipped  = 0
-        now_iso  = datetime.now(timezone.utc).isoformat()
+        skipped = 0
+        now_iso = datetime.now(timezone.utc).isoformat()
 
         # Accumulate writes into a single batch (committed in chunks) so a
         # 500-row import is a handful of round-trips rather than 500.
         activities_ref = (
-            db.collection("users").document(uid).collection("activities")
-            if db else None
+            db.collection("users").document(uid).collection("activities") if db else None
         )
         batch = db.batch() if db else None
         pending = 0
 
         for row in rows:
             try:
-                date     = _sanitise(str(row.get("date", "")))
+                date = _sanitise(str(row.get("date", "")))
                 category = _sanitise(str(row.get("category", ""))).lower()
                 activity = _sanitise(str(row.get("activity", "")))
-                amount   = float(row.get("amount", 0))
-                unit     = _sanitise(str(row.get("unit", "")))
+                amount = float(row.get("amount", 0))
+                unit = _sanitise(str(row.get("unit", "")))
 
                 if not all([date, category, activity, unit]):
                     skipped += 1
                     continue
 
                 doc = {
-                    "date":      date,
-                    "category":  category,
-                    "activity":  activity,
-                    "amount":    amount,
-                    "unit":      unit,
-                    "source":    "csv_import",
+                    "date": date,
+                    "category": category,
+                    "activity": activity,
+                    "amount": amount,
+                    "unit": unit,
+                    "source": "csv_import",
                     "timestamp": now_iso,
                 }
 
                 if db:
                     # Duplicate check: date + category + activity
                     existing = (
-                        activities_ref
-                        .where(filter=FieldFilter("date",     "==", date))
+                        activities_ref.where(filter=FieldFilter("date", "==", date))
                         .where(filter=FieldFilter("category", "==", category))
                         .where(filter=FieldFilter("activity", "==", activity))
                         .limit(1)
@@ -544,6 +560,7 @@ def import_activities():
 
 # ── Notifications mark-read ─────────────────────────────────────────────────
 
+
 @api_bp.route("/notifications/mark-read", methods=["POST"])
 @_rate_limited("30 per minute")
 def mark_notifications_read():
@@ -562,8 +579,8 @@ def mark_notifications_read():
     """
     try:
         data = request.get_json(force=True, silent=True) or {}
-        uid  = _sanitise(data.get("uid", "")).strip()
-        ids  = data.get("ids", [])
+        uid = _sanitise(data.get("uid", "")).strip()
+        ids = data.get("ids", [])
 
         if not uid:
             return jsonify({"error": "'uid' is required."}), 400
@@ -581,9 +598,7 @@ def mark_notifications_read():
         else:
             targets = [
                 notif_ref.document(d.id)
-                for d in notif_ref.where(
-                    filter=FieldFilter("read", "==", False)
-                ).stream()
+                for d in notif_ref.where(filter=FieldFilter("read", "==", False)).stream()
             ]
 
         # One batched write per chunk instead of an update per notification.

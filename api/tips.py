@@ -67,6 +67,7 @@ TIPS: dict[str, list[str]] = {
 
 # ── Gemini AI tip engine ─────────────────────────────────────────────────────
 
+
 def call_gemini_tips(
     transport: float,
     food: float,
@@ -120,13 +121,7 @@ def call_gemini_tips(
             'Format as JSON array: [{"category": string, "text": string}]'
         )
 
-        payload = {
-            "contents": [
-                {
-                    "parts": [{"text": prompt}]
-                }
-            ]
-        }
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         response = requests.post(
             endpoint,
@@ -137,20 +132,13 @@ def call_gemini_tips(
 
         response.raise_for_status()
 
-        raw_text: str = (
-            response.json()
-            ["candidates"][0]
-            ["content"]["parts"][0]
-            ["text"]
-        )
+        raw_text: str = response.json()["candidates"][0]["content"]["parts"][0]["text"]
 
         # Strip markdown code fences if Gemini wraps the JSON
         clean = raw_text.strip()
         if clean.startswith("```"):
             lines = clean.splitlines()
-            clean = "\n".join(
-                line for line in lines if not line.startswith("```")
-            ).strip()
+            clean = "\n".join(line for line in lines if not line.startswith("```")).strip()
 
         tips: list[dict] = json.loads(clean)
 
@@ -165,8 +153,9 @@ def call_gemini_tips(
         return tips
 
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Gemini tips failed (%s: %s) — using rule-based fallback.",
-                       type(exc).__name__, exc)
+        logger.warning(
+            "Gemini tips failed (%s: %s) — using rule-based fallback.", type(exc).__name__, exc
+        )
         return []
 
 

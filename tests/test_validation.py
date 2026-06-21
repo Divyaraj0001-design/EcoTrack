@@ -8,13 +8,14 @@ Run with:  pytest tests/test_validation.py -v
 """
 
 import pytest
+
 from api.calculator import (
-    calc_transport,
-    calc_food,
-    calc_energy,
-    calc_shopping,
-    calculate_footprint,
     CalculationError,
+    calc_energy,
+    calc_food,
+    calc_shopping,
+    calc_transport,
+    calculate_footprint,
 )
 
 
@@ -100,17 +101,21 @@ class TestPayloadValidation:
     def test_missing_diet_type_rejected(self):
         """Payload missing 'diet_type' must raise CalculationError."""
         with pytest.raises(CalculationError):
-            calculate_footprint({
-                "transport_mode": "car",
-                "transport_km": 10,
-                "shopping_level": "low",
-            })
+            calculate_footprint(
+                {
+                    "transport_mode": "car",
+                    "transport_km": 10,
+                    "shopping_level": "low",
+                }
+            )
 
     def test_missing_shopping_level_rejected(self):
         """Payload missing 'shopping_level' must raise CalculationError."""
         with pytest.raises(CalculationError):
-            calculate_footprint({
-                "transport_mode": "car",
-                "transport_km": 10,
-                "diet_type": "vegan",
-            })
+            calculate_footprint(
+                {
+                    "transport_mode": "car",
+                    "transport_km": 10,
+                    "diet_type": "vegan",
+                }
+            )

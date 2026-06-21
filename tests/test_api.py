@@ -8,10 +8,9 @@ Run with:  pytest tests/test_api.py -v
 """
 
 import json
-import pytest
-
 
 # ── /api/health ───────────────────────────────────────────────────────────────
+
 
 class TestHealth:
     """Tests for GET /api/health."""
@@ -32,10 +31,11 @@ class TestHealth:
         resp = client.get("/api/health")
         data = resp.get_json()
         assert "timestamp" in data
-        assert "T" in data["timestamp"]   # basic ISO-8601 check
+        assert "T" in data["timestamp"]  # basic ISO-8601 check
 
 
 # ── /api/calculate ────────────────────────────────────────────────────────────
+
 
 class TestCalculate:
     """Tests for POST /api/calculate."""
@@ -126,6 +126,7 @@ class TestCalculate:
 
 # ── /api/tips ─────────────────────────────────────────────────────────────────
 
+
 class TestTips:
     """Tests for GET /api/tips."""
 
@@ -149,6 +150,7 @@ class TestTips:
 
 
 # ── /api/challenges ───────────────────────────────────────────────────────────
+
 
 class TestChallenges:
     """Tests for GET /api/challenges."""

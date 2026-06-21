@@ -64,8 +64,8 @@ SHOPPING_FACTORS: dict[str, float] = {
     "low": 3.0,
 }
 
-ELECTRICITY_FACTOR: float = 0.233   # kg CO₂e / kWh
-NATURAL_GAS_FACTOR: float = 2.04    # kg CO₂e / m³
+ELECTRICITY_FACTOR: float = 0.233  # kg CO₂e / kWh
+NATURAL_GAS_FACTOR: float = 2.04  # kg CO₂e / m³
 
 VALID_TRANSPORT_MODES = set(TRANSPORT_FACTORS.keys())
 VALID_DIET_TYPES = set(FOOD_FACTORS.keys())
@@ -73,6 +73,7 @@ VALID_SHOPPING_LEVELS = set(SHOPPING_FACTORS.keys())
 
 
 # ── Validation helpers ─────────────────────────────────────────────────────
+
 
 class CalculationError(ValueError):
     """Raised when input values fail domain validation."""
@@ -100,6 +101,7 @@ def _require_non_negative(value: float, name: str) -> None:
 
 # ── Core calculation functions ─────────────────────────────────────────────
 
+
 def calc_transport(mode: str, km: float) -> float:
     """
     Calculate CO₂e emissions from transport.
@@ -124,8 +126,7 @@ def calc_transport(mode: str, km: float) -> float:
     mode = mode.strip().lower()
     if mode not in TRANSPORT_FACTORS:
         raise CalculationError(
-            f"Unknown transport mode '{mode}'. "
-            f"Valid options: {sorted(TRANSPORT_FACTORS)}."
+            f"Unknown transport mode '{mode}'. Valid options: {sorted(TRANSPORT_FACTORS)}."
         )
     _require_non_negative(km, "km")
     return round(TRANSPORT_FACTORS[mode] * km, 4)
@@ -155,8 +156,7 @@ def calc_food(diet_type: str, days: float = 7.0) -> float:
     diet_type = diet_type.strip().lower()
     if diet_type not in FOOD_FACTORS:
         raise CalculationError(
-            f"Unknown diet type '{diet_type}'. "
-            f"Valid options: {sorted(FOOD_FACTORS)}."
+            f"Unknown diet type '{diet_type}'. Valid options: {sorted(FOOD_FACTORS)}."
         )
     _require_non_negative(days, "days")
     return round(FOOD_FACTORS[diet_type] * days, 4)
@@ -214,8 +214,7 @@ def calc_shopping(level: str, weeks: float = 1.0) -> float:
     level = level.strip().lower()
     if level not in SHOPPING_FACTORS:
         raise CalculationError(
-            f"Unknown shopping level '{level}'. "
-            f"Valid options: {sorted(SHOPPING_FACTORS)}."
+            f"Unknown shopping level '{level}'. Valid options: {sorted(SHOPPING_FACTORS)}."
         )
     _require_non_negative(weeks, "weeks")
     return round(SHOPPING_FACTORS[level] * weeks, 4)

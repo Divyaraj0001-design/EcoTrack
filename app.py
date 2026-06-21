@@ -25,13 +25,15 @@ import os
 
 from flask import Flask, render_template
 from flask_cors import CORS
+
 # pyrefly: ignore [missing-import]
 from flask_limiter import Limiter
-# pyrefly: ignore [missing-import]
-from flask_limiter.util import get_remote_address 
 
-from config import get_config
+# pyrefly: ignore [missing-import]
+from flask_limiter.util import get_remote_address
+
 from api.routes import api_bp, init_limiter
+from config import get_config
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -126,7 +128,9 @@ def create_app(config=None) -> Flask:
             maps_api_key=cfg.GOOGLE_MAPS_API_KEY,
         )
 
-    logger.info("Carbon Footprint Platform app created (env=%s)", os.environ.get("FLASK_ENV", "development"))
+    logger.info(
+        "Carbon Footprint Platform app created (env=%s)", os.environ.get("FLASK_ENV", "development")
+    )
     return app
 
 
@@ -170,6 +174,7 @@ def _register_security_headers(app: Flask) -> None:
     app : Flask
         The application to register the ``after_request`` hook on.
     """
+
     @app.after_request
     def _apply_security_headers(response):
         for header, value in _SECURITY_HEADERS.items():
@@ -193,6 +198,7 @@ def _init_firebase(cfg) -> None:
     try:
         # pyrefly: ignore [missing-import]
         import firebase_admin
+
         # pyrefly: ignore [missing-import]
         from firebase_admin import credentials
 

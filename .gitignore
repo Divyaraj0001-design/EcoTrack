@@ -50,3 +50,4 @@ flask_session/
 node_modules/
 npm-debug.log*
 .vercel
+.agent/

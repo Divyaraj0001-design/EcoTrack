@@ -10,9 +10,10 @@ client      – Flask test client
 sample_payload – valid POST body for /api/calculate
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Ensure the project root is on sys.path so imports resolve correctly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +23,7 @@ from config import Config
 
 class TestConfig(Config):
     """Minimal config used in tests — no real Firebase credentials needed."""
+
     TESTING = True
     SECRET_KEY = "test-secret"
     FIREBASE_PROJECT_ID = "test-project"
@@ -32,7 +34,7 @@ class TestConfig(Config):
     FIREBASE_APP_ID = "1:000000000000:web:abc123"
     GOOGLE_MAPS_API_KEY = "test-maps-key"
     GOOGLE_APPLICATION_CREDENTIALS = "nonexistent.json"  # skips Firebase init
-    RATE_LIMIT = "1000 per minute"   # effectively unlimited in tests
+    RATE_LIMIT = "1000 per minute"  # effectively unlimited in tests
     CORS_ORIGINS = ["*"]
 
 
@@ -47,6 +49,7 @@ def app():
         The test application instance.
     """
     from app import create_app
+
     flask_app = create_app(config=TestConfig())
     flask_app.config["TESTING"] = True
     yield flask_app

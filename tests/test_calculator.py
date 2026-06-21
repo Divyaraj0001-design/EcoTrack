@@ -8,23 +8,22 @@ Run with:  pytest tests/test_calculator.py -v
 """
 
 import pytest
+
 from api.calculator import (
-    calc_transport,
-    calc_food,
-    calc_energy,
-    calc_shopping,
-    calc_total,
-    calculate_footprint,
-    CalculationError,
-    TRANSPORT_FACTORS,
-    FOOD_FACTORS,
-    SHOPPING_FACTORS,
     ELECTRICITY_FACTOR,
     NATURAL_GAS_FACTOR,
+    TRANSPORT_FACTORS,
+    CalculationError,
+    calc_energy,
+    calc_food,
+    calc_shopping,
+    calc_total,
+    calc_transport,
+    calculate_footprint,
 )
 
-
 # ── calc_transport ────────────────────────────────────────────────────────────
+
 
 class TestCalcTransport:
     """Tests for calc_transport()."""
@@ -81,6 +80,7 @@ class TestCalcTransport:
 
 # ── calc_food ─────────────────────────────────────────────────────────────────
 
+
 class TestCalcFood:
     """Tests for calc_food()."""
 
@@ -112,6 +112,7 @@ class TestCalcFood:
 
 
 # ── calc_energy ───────────────────────────────────────────────────────────────
+
 
 class TestCalcEnergy:
     """Tests for calc_energy()."""
@@ -146,6 +147,7 @@ class TestCalcEnergy:
 
 # ── calc_shopping ─────────────────────────────────────────────────────────────
 
+
 class TestCalcShopping:
     """Tests for calc_shopping()."""
 
@@ -174,6 +176,7 @@ class TestCalcShopping:
 
 # ── calc_total ────────────────────────────────────────────────────────────────
 
+
 class TestCalcTotal:
     """Tests for calc_total()."""
 
@@ -196,6 +199,7 @@ class TestCalcTotal:
 
 # ── calculate_footprint ───────────────────────────────────────────────────────
 
+
 class TestCalculateFootprint:
     """Integration tests for the top-level calculate_footprint()."""
 
@@ -209,10 +213,14 @@ class TestCalculateFootprint:
     def test_score_label_excellent(self):
         """Total < 30 → 'Excellent'."""
         data = {
-            "transport_mode": "bus", "transport_km": 1,
-            "diet_type": "vegan", "food_days": 1,
-            "electricity_kwh": 1, "gas_m3": 0,
-            "shopping_level": "low", "shopping_weeks": 1,
+            "transport_mode": "bus",
+            "transport_km": 1,
+            "diet_type": "vegan",
+            "food_days": 1,
+            "electricity_kwh": 1,
+            "gas_m3": 0,
+            "shopping_level": "low",
+            "shopping_weeks": 1,
         }
         result = calculate_footprint(data)
         assert "Excellent" in result["score_label"]
@@ -224,6 +232,7 @@ class TestCalculateFootprint:
 
 
 # ── Fixture used in this file ────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def sample_payload():
@@ -241,20 +250,25 @@ def sample_payload():
 
 # ── Gemini integration ────────────────────────────────────────────────────────
 
+
 def test_gemini_fallback_on_api_failure(client):
     """Gemini failure must not crash the calculate endpoint."""
     from unittest.mock import patch
-    with patch('api.tips.call_gemini_tips', side_effect=Exception("API down")):
-        response = client.post('/api/calculate', json={
-            "transport_mode": "car",
-            "transport_km": 100,
-            "diet_type": "meat",
-            "food_days": 7,
-            "electricity_kwh": 200,
-            "gas_m3": 0,
-            "shopping_level": "medium",
-            "shopping_weeks": 1
-        })
+
+    with patch("api.tips.call_gemini_tips", side_effect=Exception("API down")):
+        response = client.post(
+            "/api/calculate",
+            json={
+                "transport_mode": "car",
+                "transport_km": 100,
+                "diet_type": "meat",
+                "food_days": 7,
+                "electricity_kwh": 200,
+                "gas_m3": 0,
+                "shopping_level": "medium",
+                "shopping_weeks": 1,
+            },
+        )
         assert response.status_code == 200
         data = response.get_json()
         assert "tips" in data
@@ -263,22 +277,26 @@ def test_gemini_fallback_on_api_failure(client):
 
 def test_gemini_tips_returns_list():
     """call_gemini_tips must return a list when Gemini responds correctly."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
+
     from api.tips import call_gemini_tips
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "candidates": [{
-            "content": {
-                "parts": [{
-                    "text": '[{"category":"energy","text":"Switch to LED bulbs."}]'
-                }]
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": '[{"category":"energy","text":"Switch to LED bulbs."}]'}]
+                }
             }
-        }]
+        ]
     }
     mock_response.raise_for_status.return_value = None
-    with patch('requests.post', return_value=mock_response), \
-         patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key-123'}):
+    with (
+        patch("requests.post", return_value=mock_response),
+        patch.dict("os.environ", {"GEMINI_API_KEY": "test-key-123"}),
+    ):
         result = call_gemini_tips(31.5, 50.4, 58.25, 8.0)
         assert isinstance(result, list)
         assert result[0]["category"] == "energy"
